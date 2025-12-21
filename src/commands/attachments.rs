@@ -3,6 +3,7 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::json;
 use tabled::Tabled;
+use url::Url;
 
 use crate::cli::{AttachUrlArgs, UploadFileArgs};
 use crate::client::LinearClient;
@@ -175,6 +176,9 @@ pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
 }
 
 pub async fn attach_url(client: &LinearClient, args: AttachUrlArgs) -> Result<()> {
+    // Validate URL format
+    Url::parse(&args.url).map_err(|_| LinearError::InvalidUrl(args.url.clone()))?;
+
     let title = args.title.unwrap_or_else(|| args.url.clone());
 
     let variables = json!({

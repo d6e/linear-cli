@@ -198,7 +198,7 @@ pub struct IssueCreateArgs {
     pub project: Option<String>,
 
     /// Priority (0=none, 1=urgent, 2=high, 3=medium, 4=low)
-    #[arg(long)]
+    #[arg(long, value_parser = clap::value_parser!(i32).range(0..=4))]
     pub priority: Option<i32>,
 }
 
@@ -219,11 +219,11 @@ pub struct IssueUpdateArgs {
     #[arg(long)]
     pub status: Option<String>,
 
-    /// New priority
-    #[arg(long)]
+    /// New priority (0=none, 1=urgent, 2=high, 3=medium, 4=low)
+    #[arg(long, value_parser = clap::value_parser!(i32).range(0..=4))]
     pub priority: Option<i32>,
 
-    /// Assign to user (email or "me")
+    /// Assign to user (ID or "me")
     #[arg(long)]
     pub assignee: Option<String>,
 }
