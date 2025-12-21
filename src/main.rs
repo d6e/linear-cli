@@ -5,6 +5,7 @@ mod commands;
 mod config;
 mod error;
 mod output;
+mod responses;
 mod types;
 
 use std::io;

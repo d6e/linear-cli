@@ -8,6 +8,7 @@ use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::{LinearError, Result};
 use crate::output::{self, format_date, priority_colored, priority_label, status_colored, truncate};
+use crate::responses::{CreatedIssue, PageInfo, TeamNode, ViewerResponse, WorkflowStateNode};
 use crate::types::Issue;
 
 const LIST_ISSUES_QUERY: &str = r#"
@@ -168,14 +169,6 @@ struct IssuesConnection {
 }
 
 #[derive(Deserialize)]
-struct PageInfo {
-    #[serde(rename = "hasNextPage")]
-    has_next_page: bool,
-    #[serde(rename = "endCursor")]
-    end_cursor: Option<String>,
-}
-
-#[derive(Deserialize)]
 struct IssueResponse {
     issue: Option<Issue>,
 }
@@ -193,12 +186,6 @@ struct IssueCreateResult {
 }
 
 #[derive(Deserialize)]
-struct CreatedIssue {
-    identifier: String,
-    title: String,
-}
-
-#[derive(Deserialize)]
 struct UpdateIssueResponse {
     #[serde(rename = "issueUpdate")]
     issue_update: IssueUpdateResult,
@@ -208,16 +195,6 @@ struct UpdateIssueResponse {
 struct IssueUpdateResult {
     success: bool,
     issue: Option<CreatedIssue>,
-}
-
-#[derive(Deserialize)]
-struct ViewerResponse {
-    viewer: Viewer,
-}
-
-#[derive(Deserialize)]
-struct Viewer {
-    id: String,
 }
 
 #[derive(Deserialize)]
@@ -231,11 +208,6 @@ struct TeamsConnection {
 }
 
 #[derive(Deserialize)]
-struct TeamNode {
-    id: String,
-}
-
-#[derive(Deserialize)]
 struct WorkflowStatesResponse {
     #[serde(rename = "workflowStates")]
     workflow_states: WorkflowStatesConnection,
@@ -244,12 +216,6 @@ struct WorkflowStatesResponse {
 #[derive(Deserialize)]
 struct WorkflowStatesConnection {
     nodes: Vec<WorkflowStateNode>,
-}
-
-#[derive(Deserialize)]
-struct WorkflowStateNode {
-    id: String,
-    name: String,
 }
 
 #[derive(Tabled)]
@@ -528,6 +494,9 @@ pub async fn update(client: &LinearClient, args: IssueUpdateArgs) -> Result<()> 
         if assignee == "me" {
             let viewer: ViewerResponse = client.query(GET_VIEWER_QUERY, None).await?;
             input.insert("assigneeId".to_string(), json!(viewer.viewer.id));
+        } else {
+            // Treat as user ID directly
+            input.insert("assigneeId".to_string(), json!(assignee));
         }
     }
 
@@ -579,7 +548,7 @@ pub async fn close(client: &LinearClient, id: &str) -> Result<()> {
             let name = s.name.to_lowercase();
             name.contains("done") || name.contains("complete") || name.contains("closed")
         })
-        .ok_or_else(|| LinearError::IssueNotFound("No 'Done' state found for team".to_string()))?;
+        .ok_or_else(|| LinearError::WorkflowStateNotFound("No 'Done' state found for team".to_string()))?;
 
     let variables = json!({
         "id": id,
