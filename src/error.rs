@@ -46,6 +46,12 @@ pub enum LinearError {
     #[error("Team not found: {0}")]
     TeamNotFound(String),
 
+    #[error("Workflow state not found: {0}")]
+    WorkflowStateNotFound(String),
+
+    #[error("Invalid URL: {0}")]
+    InvalidUrl(String),
+
     #[error("File not found: {0}")]
     FileNotFound(String),
 
