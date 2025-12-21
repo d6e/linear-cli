@@ -26,7 +26,10 @@ impl Cache {
     pub fn load() -> Self {
         let path = match Self::cache_path() {
             Ok(p) => p,
-            Err(_) => return Self::default(),
+            Err(_) => {
+                eprintln!("Warning: Could not determine cache path");
+                return Self::default();
+            }
         };
 
         if !path.exists() {
@@ -35,12 +38,18 @@ impl Cache {
 
         let contents = match std::fs::read_to_string(&path) {
             Ok(c) => c,
-            Err(_) => return Self::default(),
+            Err(e) => {
+                eprintln!("Warning: Could not read cache file: {e}");
+                return Self::default();
+            }
         };
 
         let cache: Self = match serde_json::from_str(&contents) {
             Ok(c) => c,
-            Err(_) => return Self::default(),
+            Err(e) => {
+                eprintln!("Warning: Could not parse cache file: {e}");
+                return Self::default();
+            }
         };
 
         // Check if cache is expired
@@ -59,19 +68,30 @@ impl Cache {
     pub fn save(&self) {
         let path = match Self::cache_path() {
             Ok(p) => p,
-            Err(_) => return,
+            Err(_) => {
+                eprintln!("Warning: Could not determine cache path for saving");
+                return;
+            }
         };
 
         if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!("Warning: Could not create cache directory: {e}");
+                return;
+            }
         }
 
         let contents = match serde_json::to_string_pretty(self) {
             Ok(c) => c,
-            Err(_) => return,
+            Err(e) => {
+                eprintln!("Warning: Could not serialize cache: {e}");
+                return;
+            }
         };
 
-        let _ = std::fs::write(path, contents);
+        if let Err(e) = std::fs::write(&path, contents) {
+            eprintln!("Warning: Could not write cache file: {e}");
+        }
     }
 
     fn cache_path() -> Result<PathBuf, ()> {
