@@ -1,18 +1,18 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use colored::Colorize;
 use serde::Serialize;
 use tabled::{Table, Tabled, settings::Style};
 
-/// Global output format setting
-static mut OUTPUT_JSON: bool = false;
+/// Global output format setting (thread-safe)
+static OUTPUT_JSON: AtomicBool = AtomicBool::new(false);
 
 pub fn set_json_output(json: bool) {
-    unsafe {
-        OUTPUT_JSON = json;
-    }
+    OUTPUT_JSON.store(json, Ordering::Relaxed);
 }
 
 pub fn is_json_output() -> bool {
-    unsafe { OUTPUT_JSON }
+    OUTPUT_JSON.load(Ordering::Relaxed)
 }
 
 /// Print a table or JSON depending on output mode
@@ -25,7 +25,7 @@ where
     if is_json_output() {
         println!("{}", serde_json::to_string_pretty(items).unwrap_or_default());
     } else {
-        let rows: Vec<R> = items.iter().map(|item| to_row(item)).collect();
+        let rows: Vec<R> = items.iter().map(to_row).collect();
         let table = Table::new(rows).with(Style::rounded()).to_string();
         println!("{table}");
     }
@@ -161,11 +161,13 @@ pub fn format_relative(iso: &str) -> String {
     }
 }
 
-/// Truncate a string with ellipsis
+/// Truncate a string with ellipsis (unicode-safe)
 pub fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
+    let char_count = s.chars().count();
+    if char_count <= max {
         s.to_string()
     } else {
-        format!("{}...", &s[..max - 3])
+        let truncated: String = s.chars().take(max.saturating_sub(3)).collect();
+        format!("{}...", truncated)
     }
 }
