@@ -1,5 +1,8 @@
 pub mod attachments;
+pub mod comments;
 pub mod cycles;
+pub mod init;
 pub mod issues;
+pub mod labels;
 pub mod projects;
 pub mod teams;

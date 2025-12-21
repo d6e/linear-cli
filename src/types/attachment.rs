@@ -1,6 +1,7 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[allow(dead_code)]
 pub struct Attachment {
     pub id: String,
     pub title: String,
@@ -11,6 +12,7 @@ pub struct Attachment {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 pub struct UploadFile {
     #[serde(rename = "uploadUrl")]
     pub upload_url: String,
@@ -20,6 +22,7 @@ pub struct UploadFile {
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(dead_code)]
 pub struct UploadHeader {
     pub key: String,
     pub value: String,

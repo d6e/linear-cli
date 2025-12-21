@@ -1,10 +1,11 @@
 use serde::Deserialize;
 use serde_json::json;
-use tabled::{Table, Tabled, settings::Style};
+use tabled::Tabled;
 
 use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::Result;
+use crate::output;
 use crate::types::Project;
 
 const LIST_PROJECTS_QUERY: &str = r#"
@@ -64,9 +65,7 @@ pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) 
 
     let response: ProjectsResponse = client.query(LIST_PROJECTS_QUERY, variables).await?;
 
-    let rows: Vec<ProjectRow> = response.projects.nodes.iter().map(ProjectRow::from).collect();
-    let table = Table::new(rows).with(Style::rounded()).to_string();
-    println!("{table}");
+    output::print_table(&response.projects.nodes, |p| ProjectRow::from(p));
 
     Ok(())
 }

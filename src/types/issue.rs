@@ -1,8 +1,9 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use super::{Cycle, Project, Team, User};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[allow(dead_code)]
 pub struct Issue {
     pub id: String,
     pub identifier: String,
@@ -20,7 +21,8 @@ pub struct Issue {
     pub updated_at: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[allow(dead_code)]
 pub struct WorkflowState {
     pub id: String,
     pub name: String,

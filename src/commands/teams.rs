@@ -1,8 +1,9 @@
 use serde::Deserialize;
-use tabled::{Table, Tabled, settings::Style};
+use tabled::Tabled;
 
 use crate::client::LinearClient;
 use crate::error::Result;
+use crate::output;
 use crate::types::Team;
 
 const LIST_TEAMS_QUERY: &str = r#"
@@ -50,9 +51,7 @@ impl From<&Team> for TeamRow {
 pub async fn list(client: &LinearClient) -> Result<()> {
     let response: TeamsResponse = client.query(LIST_TEAMS_QUERY, None).await?;
 
-    let rows: Vec<TeamRow> = response.teams.nodes.iter().map(TeamRow::from).collect();
-    let table = Table::new(rows).with(Style::rounded()).to_string();
-    println!("{table}");
+    output::print_table(&response.teams.nodes, |t| TeamRow::from(t));
 
     Ok(())
 }

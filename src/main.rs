@@ -1,11 +1,16 @@
+mod cache;
 mod cli;
 mod client;
 mod commands;
 mod config;
 mod error;
+mod output;
 mod types;
 
-use clap::Parser;
+use std::io;
+
+use clap::{CommandFactory, Parser};
+use clap_complete::generate;
 
 use cli::{Cli, Commands, IssueCommands};
 use client::LinearClient;
@@ -22,6 +27,22 @@ async fn main() {
 
 async fn run() -> Result<()> {
     let cli = Cli::parse();
+
+    // Set global output format
+    output::set_json_output(cli.json);
+
+    // Handle completions command (doesn't require config/client)
+    if let Commands::Completions { shell } = cli.command {
+        let mut cmd = Cli::command();
+        generate(shell, &mut cmd, "linear", &mut io::stdout());
+        return Ok(());
+    }
+
+    // Handle init command (doesn't require existing config)
+    if let Commands::Init = cli.command {
+        return commands::init::run().await;
+    }
+
     let config = Config::load()?;
     let client = LinearClient::new(config.api_key()?);
 
@@ -38,6 +59,9 @@ async fn run() -> Result<()> {
         Commands::Issues(args) => {
             commands::issues::list(&client, &config, args).await?;
         }
+        Commands::Labels { team } => {
+            commands::labels::list(&client, &config, team).await?;
+        }
         Commands::Issue { action } => match action {
             IssueCommands::List(args) => {
                 commands::issues::list(&client, &config, args).await?;
@@ -51,6 +75,9 @@ async fn run() -> Result<()> {
             IssueCommands::Update(args) => {
                 commands::issues::update(&client, args).await?;
             }
+            IssueCommands::Close { id } => {
+                commands::issues::close(&client, &id).await?;
+            }
             IssueCommands::Attachments { id } => {
                 commands::attachments::list(&client, &id).await?;
             }
@@ -60,7 +87,14 @@ async fn run() -> Result<()> {
             IssueCommands::Upload(args) => {
                 commands::attachments::upload_file(&client, args).await?;
             }
+            IssueCommands::Comments { id } => {
+                commands::comments::list(&client, &id).await?;
+            }
+            IssueCommands::Comment(args) => {
+                commands::comments::add(&client, args).await?;
+            }
         },
+        Commands::Completions { .. } | Commands::Init => unreachable!(),
     }
 
     Ok(())

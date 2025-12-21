@@ -2,11 +2,12 @@ use std::path::Path;
 
 use serde::Deserialize;
 use serde_json::json;
-use tabled::{Table, Tabled, settings::Style};
+use tabled::Tabled;
 
 use crate::cli::{AttachUrlArgs, UploadFileArgs};
 use crate::client::LinearClient;
 use crate::error::{LinearError, Result};
+use crate::output::{self, format_date_only, truncate};
 use crate::types::Attachment;
 
 const LIST_ATTACHMENTS_QUERY: &str = r#"
@@ -94,6 +95,7 @@ struct AttachmentResult {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct AttachmentInfo {
     title: String,
     url: Option<String>,
@@ -147,21 +149,9 @@ impl From<&Attachment> for AttachmentRow {
         Self {
             title: truncate(&attachment.title, 40),
             url: truncate(attachment.url.as_deref().unwrap_or("-"), 50),
-            created_at: format_date(&attachment.created_at),
+            created_at: format_date_only(&attachment.created_at),
         }
     }
-}
-
-fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max - 3])
-    }
-}
-
-fn format_date(iso: &str) -> String {
-    iso.split('T').next().unwrap_or(iso).to_string()
 }
 
 pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
@@ -175,13 +165,11 @@ pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
         .nodes;
 
     if attachments.is_empty() {
-        println!("No attachments found for {}", issue_id);
+        output::print_message(&format!("No attachments found for {issue_id}"));
         return Ok(());
     }
 
-    let rows: Vec<AttachmentRow> = attachments.iter().map(AttachmentRow::from).collect();
-    let table = Table::new(rows).with(Style::rounded()).to_string();
-    println!("{table}");
+    output::print_table(&attachments, |a| AttachmentRow::from(a));
 
     Ok(())
 }
@@ -199,11 +187,7 @@ pub async fn attach_url(client: &LinearClient, args: AttachUrlArgs) -> Result<()
 
     if response.attachment_link_url.success {
         if let Some(attachment) = response.attachment_link_url.attachment {
-            println!(
-                "Attached \"{}\" to {}",
-                attachment.title,
-                args.id
-            );
+            output::print_message(&format!("Attached \"{}\" to {}", attachment.title, args.id));
         }
     }
 
@@ -282,7 +266,7 @@ pub async fn upload_file(client: &LinearClient, args: UploadFileArgs) -> Result<
         .await?;
 
     if attach_response.attachment_create.success {
-        println!("Uploaded \"{}\" to {}", title, args.id);
+        output::print_message(&format!("Uploaded \"{}\" to {}", title, args.id));
     }
 
     Ok(())

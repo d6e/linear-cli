@@ -1,10 +1,11 @@
 use serde::Deserialize;
 use serde_json::json;
-use tabled::{Table, Tabled, settings::Style};
+use tabled::Tabled;
 
 use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::Result;
+use crate::output::{self, format_date_only};
 use crate::types::Cycle;
 
 const LIST_CYCLES_QUERY: &str = r#"
@@ -48,15 +49,10 @@ impl From<&Cycle> for CycleRow {
         Self {
             number: cycle.number,
             name: cycle.name.clone().unwrap_or_default(),
-            starts_at: format_date(&cycle.starts_at),
-            ends_at: format_date(&cycle.ends_at),
+            starts_at: format_date_only(&cycle.starts_at),
+            ends_at: format_date_only(&cycle.ends_at),
         }
     }
-}
-
-fn format_date(iso: &str) -> String {
-    // Simple date extraction from ISO format
-    iso.split('T').next().unwrap_or(iso).to_string()
 }
 
 pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) -> Result<()> {
@@ -74,9 +70,7 @@ pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) 
 
     let response: CyclesResponse = client.query(LIST_CYCLES_QUERY, variables).await?;
 
-    let rows: Vec<CycleRow> = response.cycles.nodes.iter().map(CycleRow::from).collect();
-    let table = Table::new(rows).with(Style::rounded()).to_string();
-    println!("{table}");
+    output::print_table(&response.cycles.nodes, |c| CycleRow::from(c));
 
     Ok(())
 }

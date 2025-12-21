@@ -1,16 +1,18 @@
 use serde::Deserialize;
 use serde_json::json;
-use tabled::{Table, Tabled, settings::Style};
+use tabled::Tabled;
 
+use crate::cache::{Cache, CachedTeam};
 use crate::cli::{IssueCreateArgs, IssueListArgs, IssueUpdateArgs};
 use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::{LinearError, Result};
+use crate::output::{self, format_date, priority_colored, priority_label, status_colored, truncate};
 use crate::types::Issue;
 
 const LIST_ISSUES_QUERY: &str = r#"
-query ListIssues($filter: IssueFilter, $first: Int) {
-    issues(filter: $filter, first: $first) {
+query ListIssues($filter: IssueFilter, $first: Int, $after: String) {
+    issues(filter: $filter, first: $first, after: $after) {
         nodes {
             id
             identifier
@@ -46,6 +48,10 @@ query ListIssues($filter: IssueFilter, $first: Int) {
             }
             createdAt
             updatedAt
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
         }
     }
 }
@@ -157,6 +163,16 @@ struct IssuesResponse {
 #[derive(Deserialize)]
 struct IssuesConnection {
     nodes: Vec<Issue>,
+    #[serde(rename = "pageInfo")]
+    page_info: PageInfo,
+}
+
+#[derive(Deserialize)]
+struct PageInfo {
+    #[serde(rename = "hasNextPage")]
+    has_next_page: bool,
+    #[serde(rename = "endCursor")]
+    end_cursor: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -252,40 +268,31 @@ struct IssueRow {
 
 impl From<&Issue> for IssueRow {
     fn from(issue: &Issue) -> Self {
+        let (status_name, status_color) = issue
+            .state
+            .as_ref()
+            .map(|s| (s.name.clone(), Some(s.color.clone())))
+            .unwrap_or_default();
+
         Self {
             id: issue.identifier.clone(),
             title: truncate(&issue.title, 50),
-            status: issue
-                .state
-                .as_ref()
-                .map(|s| s.name.clone())
-                .unwrap_or_default(),
-            priority: priority_label(issue.priority),
+            status: if output::is_json_output() {
+                status_name
+            } else {
+                status_colored(&status_name, status_color.as_deref())
+            },
+            priority: if output::is_json_output() {
+                priority_label(issue.priority)
+            } else {
+                priority_colored(issue.priority)
+            },
             assignee: issue
                 .assignee
                 .as_ref()
                 .map(|u| u.name.clone())
                 .unwrap_or_default(),
         }
-    }
-}
-
-fn priority_label(priority: i32) -> String {
-    match priority {
-        0 => "None".to_string(),
-        1 => "Urgent".to_string(),
-        2 => "High".to_string(),
-        3 => "Medium".to_string(),
-        4 => "Low".to_string(),
-        _ => format!("P{priority}"),
-    }
-}
-
-fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max - 3])
     }
 }
 
@@ -316,6 +323,14 @@ pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -
         );
     }
 
+    // Label filter
+    if let Some(label) = &args.label {
+        filter.insert(
+            "labels".to_string(),
+            json!({ "name": { "containsIgnoreCase": label } }),
+        );
+    }
+
     // Mine filter
     if args.mine {
         let viewer: ViewerResponse = client.query(GET_VIEWER_QUERY, None).await?;
@@ -325,16 +340,35 @@ pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -
         );
     }
 
-    let variables = json!({
-        "filter": filter,
-        "first": args.limit
-    });
+    // Pagination support
+    let page_size = if args.all { 100 } else { args.limit.min(250) };
+    let mut all_issues: Vec<Issue> = Vec::new();
+    let mut cursor: Option<String> = None;
 
-    let response: IssuesResponse = client.query(LIST_ISSUES_QUERY, Some(variables)).await?;
+    loop {
+        let mut variables = json!({
+            "filter": filter.clone(),
+            "first": page_size
+        });
 
-    let rows: Vec<IssueRow> = response.issues.nodes.iter().map(IssueRow::from).collect();
-    let table = Table::new(rows).with(Style::rounded()).to_string();
-    println!("{table}");
+        if let Some(ref c) = cursor {
+            variables["after"] = json!(c);
+        }
+
+        let response: IssuesResponse = client.query(LIST_ISSUES_QUERY, Some(variables)).await?;
+        all_issues.extend(response.issues.nodes);
+
+        if !args.all || !response.issues.page_info.has_next_page {
+            break;
+        }
+
+        cursor = response.issues.page_info.end_cursor;
+        if cursor.is_none() {
+            break;
+        }
+    }
+
+    output::print_table(&all_issues, |i| IssueRow::from(i));
 
     Ok(())
 }
@@ -347,33 +381,47 @@ pub async fn show(client: &LinearClient, id: &str) -> Result<()> {
         .issue
         .ok_or_else(|| LinearError::IssueNotFound(id.to_string()))?;
 
-    println!("{} - {}", issue.identifier, issue.title);
-    println!();
+    output::print_item(&issue, |issue| {
+        use colored::Colorize;
 
-    if let Some(desc) = &issue.description {
-        println!("{desc}");
+        println!("{} - {}", issue.identifier.bold(), issue.title);
         println!();
-    }
 
-    println!("Team:     {}", issue.team.name);
-    println!(
-        "Status:   {}",
-        issue.state.as_ref().map(|s| &s.name[..]).unwrap_or("-")
-    );
-    println!("Priority: {}", priority_label(issue.priority));
-    println!(
-        "Assignee: {}",
-        issue.assignee.as_ref().map(|u| &u.name[..]).unwrap_or("-")
-    );
-    if let Some(project) = &issue.project {
-        println!("Project:  {}", project.name);
-    }
-    if let Some(cycle) = &issue.cycle {
+        if let Some(desc) = &issue.description {
+            println!("{desc}");
+            println!();
+        }
+
+        println!("Team:     {}", issue.team.name);
+
+        let (status_name, status_color) = issue
+            .state
+            .as_ref()
+            .map(|s| (s.name.as_str(), Some(s.color.as_str())))
+            .unwrap_or(("-", None));
+        println!("Status:   {}", status_colored(status_name, status_color));
+
+        println!("Priority: {}", priority_colored(issue.priority));
+
         println!(
-            "Cycle:    {}",
-            cycle.name.as_deref().unwrap_or(&format!("Cycle {}", cycle.number))
+            "Assignee: {}",
+            issue.assignee.as_ref().map(|u| &u.name[..]).unwrap_or("-")
         );
-    }
+
+        if let Some(project) = &issue.project {
+            println!("Project:  {}", project.name);
+        }
+
+        if let Some(cycle) = &issue.cycle {
+            println!(
+                "Cycle:    {}",
+                cycle.name.as_deref().unwrap_or(&format!("Cycle {}", cycle.number))
+            );
+        }
+
+        println!("Created:  {}", format_date(&issue.created_at));
+        println!("Updated:  {}", format_date(&issue.updated_at));
+    });
 
     Ok(())
 }
@@ -383,17 +431,31 @@ pub async fn create(client: &LinearClient, config: &Config, args: IssueCreateArg
         .resolve_team(args.team.as_deref())
         .ok_or(LinearError::NoTeam)?;
 
-    // Get team ID from key
-    let team_response: TeamsResponse = client
-        .query(GET_TEAM_BY_KEY_QUERY, Some(json!({ "key": team_key })))
-        .await?;
+    // Try to get team ID from cache first
+    let mut cache = Cache::load();
+    let team_id = if let Some(cached_id) = cache.get_team_id(&team_key) {
+        cached_id
+    } else {
+        // Fetch from API and cache
+        let team_response: TeamsResponse = client
+            .query(GET_TEAM_BY_KEY_QUERY, Some(json!({ "key": team_key })))
+            .await?;
 
-    let team_id = team_response
-        .teams
-        .nodes
-        .first()
-        .map(|t| t.id.clone())
-        .ok_or_else(|| LinearError::TeamNotFound(team_key))?;
+        let team = team_response
+            .teams
+            .nodes
+            .first()
+            .ok_or_else(|| LinearError::TeamNotFound(team_key.clone()))?;
+
+        cache.set_team(CachedTeam {
+            id: team.id.clone(),
+            key: team_key.clone(),
+            name: "".to_string(), // We don't have the name in this response
+        });
+        cache.save();
+
+        team.id.clone()
+    };
 
     let mut input = serde_json::Map::new();
     input.insert("title".to_string(), json!(args.title));
@@ -413,7 +475,7 @@ pub async fn create(client: &LinearClient, config: &Config, args: IssueCreateArg
 
     if response.issue_create.success {
         if let Some(issue) = response.issue_create.issue {
-            println!("Created {} - {}", issue.identifier, issue.title);
+            output::print_message(&format!("Created {} - {}", issue.identifier, issue.title));
         }
     }
 
@@ -470,7 +532,7 @@ pub async fn update(client: &LinearClient, args: IssueUpdateArgs) -> Result<()> 
     }
 
     if input.is_empty() {
-        println!("No updates specified");
+        output::print_message("No updates specified");
         return Ok(());
     }
 
@@ -485,7 +547,57 @@ pub async fn update(client: &LinearClient, args: IssueUpdateArgs) -> Result<()> 
 
     if response.issue_update.success {
         if let Some(issue) = response.issue_update.issue {
-            println!("Updated {} - {}", issue.identifier, issue.title);
+            output::print_message(&format!("Updated {} - {}", issue.identifier, issue.title));
+        }
+    }
+
+    Ok(())
+}
+
+/// Close an issue by setting its status to a "done" state
+pub async fn close(client: &LinearClient, id: &str) -> Result<()> {
+    // First get the issue to find its team
+    let issue_response: IssueResponse = client
+        .query(GET_ISSUE_QUERY, Some(json!({ "id": id })))
+        .await?;
+
+    let issue = issue_response
+        .issue
+        .ok_or_else(|| LinearError::IssueNotFound(id.to_string()))?;
+
+    // Get workflow states for the team
+    let states_response: WorkflowStatesResponse = client
+        .query(GET_STATES_QUERY, Some(json!({ "teamId": issue.team.id })))
+        .await?;
+
+    // Find a "done" or "completed" or "closed" state
+    let done_state = states_response
+        .workflow_states
+        .nodes
+        .iter()
+        .find(|s| {
+            let name = s.name.to_lowercase();
+            name.contains("done") || name.contains("complete") || name.contains("closed")
+        })
+        .ok_or_else(|| LinearError::IssueNotFound("No 'Done' state found for team".to_string()))?;
+
+    let variables = json!({
+        "id": id,
+        "input": {
+            "stateId": done_state.id
+        }
+    });
+
+    let response: UpdateIssueResponse = client
+        .query(UPDATE_ISSUE_MUTATION, Some(variables))
+        .await?;
+
+    if response.issue_update.success {
+        if let Some(updated_issue) = response.issue_update.issue {
+            output::print_message(&format!(
+                "Closed {} - {}",
+                updated_issue.identifier, updated_issue.title
+            ));
         }
     }
 
