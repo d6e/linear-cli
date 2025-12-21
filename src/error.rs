@@ -1,0 +1,50 @@
+use std::path::PathBuf;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum LinearError {
+    #[error("HTTP request failed: {0}")]
+    Http(#[from] reqwest::Error),
+
+    #[error("API error (status {status}): {message}")]
+    ApiError { status: u16, message: String },
+
+    #[error("GraphQL errors: {}", messages.join(", "))]
+    GraphQL { messages: Vec<String> },
+
+    #[error("Empty response from API")]
+    EmptyResponse,
+
+    #[error("Failed to read config file at {path}: {source}")]
+    ConfigRead {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to parse config file at {path}: {source}")]
+    ConfigParse {
+        path: PathBuf,
+        #[source]
+        source: toml::de::Error,
+    },
+
+    #[error("Could not determine config directory")]
+    NoConfigDir,
+
+    #[error(
+        "No API key found. Set LINEAR_API_KEY env var or add api_key to ~/.config/linear/config.toml"
+    )]
+    MissingApiKey,
+
+    #[error("Team not specified and no default_team in config")]
+    NoTeam,
+
+    #[error("Issue not found: {0}")]
+    IssueNotFound(String),
+
+    #[error("Team not found: {0}")]
+    TeamNotFound(String),
+}
+
+pub type Result<T> = std::result::Result<T, LinearError>;

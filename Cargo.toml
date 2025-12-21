@@ -1,6 +1,16 @@
 [package]
 name = "linear-cli"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
+tokio = { version = "1.42", features = ["rt-multi-thread", "macros"] }
+reqwest = { version = "0.12", features = ["json"] }
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+directories = "5.0"
+thiserror = "2.0"
+tabled = "0.17"
+colored = "2.1"
