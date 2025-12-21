@@ -46,6 +46,15 @@ pub enum IssueCommands {
     Create(IssueCreateArgs),
     /// Update an existing issue
     Update(IssueUpdateArgs),
+    /// List attachments on an issue
+    Attachments {
+        /// Issue identifier (e.g., ENG-123)
+        id: String,
+    },
+    /// Attach a URL to an issue
+    Attach(AttachUrlArgs),
+    /// Upload a file and attach it to an issue
+    Upload(UploadFileArgs),
 }
 
 #[derive(Args, Clone)]
@@ -118,4 +127,30 @@ pub struct IssueUpdateArgs {
     /// Assign to user (email or "me")
     #[arg(long)]
     pub assignee: Option<String>,
+}
+
+#[derive(Args)]
+pub struct AttachUrlArgs {
+    /// Issue identifier (e.g., ENG-123)
+    pub id: String,
+
+    /// URL to attach
+    pub url: String,
+
+    /// Title for the attachment
+    #[arg(long, short)]
+    pub title: Option<String>,
+}
+
+#[derive(Args)]
+pub struct UploadFileArgs {
+    /// Issue identifier (e.g., ENG-123)
+    pub id: String,
+
+    /// Path to file to upload
+    pub file: String,
+
+    /// Title for the attachment (defaults to filename)
+    #[arg(long, short)]
+    pub title: Option<String>,
 }

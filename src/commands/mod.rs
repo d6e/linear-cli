@@ -1,3 +1,4 @@
+pub mod attachments;
 pub mod cycles;
 pub mod issues;
 pub mod projects;

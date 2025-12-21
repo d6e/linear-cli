@@ -51,6 +51,15 @@ async fn run() -> Result<()> {
             IssueCommands::Update(args) => {
                 commands::issues::update(&client, args).await?;
             }
+            IssueCommands::Attachments { id } => {
+                commands::attachments::list(&client, &id).await?;
+            }
+            IssueCommands::Attach(args) => {
+                commands::attachments::attach_url(&client, args).await?;
+            }
+            IssueCommands::Upload(args) => {
+                commands::attachments::upload_file(&client, args).await?;
+            }
         },
     }
 

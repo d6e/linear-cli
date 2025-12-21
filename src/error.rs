@@ -45,6 +45,19 @@ pub enum LinearError {
 
     #[error("Team not found: {0}")]
     TeamNotFound(String),
+
+    #[error("File not found: {0}")]
+    FileNotFound(String),
+
+    #[error("Failed to read file {path}: {source}")]
+    FileRead {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("File upload failed (status {status}): {message}")]
+    UploadFailed { status: u16, message: String },
 }
 
 pub type Result<T> = std::result::Result<T, LinearError>;
