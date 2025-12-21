@@ -7,7 +7,9 @@ use crate::cli::{IssueCreateArgs, IssueListArgs, IssueUpdateArgs};
 use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::{LinearError, Result};
-use crate::output::{self, format_date, priority_colored, priority_label, status_colored, truncate};
+use crate::output::{
+    self, format_date, priority_colored, priority_label, status_colored, truncate,
+};
 use crate::responses::{CreatedIssue, PageInfo, TeamNode, ViewerResponse, WorkflowStateNode};
 use crate::types::Issue;
 
@@ -267,10 +269,7 @@ pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -
 
     // Team filter
     if let Some(team_key) = config.resolve_team(args.team.as_deref()) {
-        filter.insert(
-            "team".to_string(),
-            json!({ "key": { "eq": team_key } }),
-        );
+        filter.insert("team".to_string(), json!({ "key": { "eq": team_key } }));
     }
 
     // Status filter
@@ -381,7 +380,10 @@ pub async fn show(client: &LinearClient, id: &str) -> Result<()> {
         if let Some(cycle) = &issue.cycle {
             println!(
                 "Cycle:    {}",
-                cycle.name.as_deref().unwrap_or(&format!("Cycle {}", cycle.number))
+                cycle
+                    .name
+                    .as_deref()
+                    .unwrap_or(&format!("Cycle {}", cycle.number))
             );
         }
 
@@ -435,9 +437,8 @@ pub async fn create(client: &LinearClient, config: &Config, args: IssueCreateArg
     }
 
     let variables = json!({ "input": input });
-    let response: CreateIssueResponse = client
-        .query(CREATE_ISSUE_MUTATION, Some(variables))
-        .await?;
+    let response: CreateIssueResponse =
+        client.query(CREATE_ISSUE_MUTATION, Some(variables)).await?;
 
     if response.issue_create.success {
         if let Some(issue) = response.issue_create.issue {
@@ -510,9 +511,8 @@ pub async fn update(client: &LinearClient, args: IssueUpdateArgs) -> Result<()> 
         "input": input
     });
 
-    let response: UpdateIssueResponse = client
-        .query(UPDATE_ISSUE_MUTATION, Some(variables))
-        .await?;
+    let response: UpdateIssueResponse =
+        client.query(UPDATE_ISSUE_MUTATION, Some(variables)).await?;
 
     if response.issue_update.success {
         if let Some(issue) = response.issue_update.issue {
@@ -548,7 +548,9 @@ pub async fn close(client: &LinearClient, id: &str) -> Result<()> {
             let name = s.name.to_lowercase();
             name.contains("done") || name.contains("complete") || name.contains("closed")
         })
-        .ok_or_else(|| LinearError::WorkflowStateNotFound("No 'Done' state found for team".to_string()))?;
+        .ok_or_else(|| {
+            LinearError::WorkflowStateNotFound("No 'Done' state found for team".to_string())
+        })?;
 
     let variables = json!({
         "id": id,
@@ -557,9 +559,8 @@ pub async fn close(client: &LinearClient, id: &str) -> Result<()> {
         }
     });
 
-    let response: UpdateIssueResponse = client
-        .query(UPDATE_ISSUE_MUTATION, Some(variables))
-        .await?;
+    let response: UpdateIssueResponse =
+        client.query(UPDATE_ISSUE_MUTATION, Some(variables)).await?;
 
     if response.issue_update.success {
         if let Some(updated_issue) = response.issue_update.issue {

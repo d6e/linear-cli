@@ -157,7 +157,9 @@ impl From<&Attachment> for AttachmentRow {
 
 pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
     let variables = json!({ "issueId": issue_id });
-    let response: AttachmentsResponse = client.query(LIST_ATTACHMENTS_QUERY, Some(variables)).await?;
+    let response: AttachmentsResponse = client
+        .query(LIST_ATTACHMENTS_QUERY, Some(variables))
+        .await?;
 
     let attachments = response
         .issue
@@ -231,9 +233,8 @@ pub async fn upload_file(client: &LinearClient, args: UploadFileArgs) -> Result<
         "size": file_size
     });
 
-    let upload_response: FileUploadResponse = client
-        .query(FILE_UPLOAD_MUTATION, Some(variables))
-        .await?;
+    let upload_response: FileUploadResponse =
+        client.query(FILE_UPLOAD_MUTATION, Some(variables)).await?;
 
     let upload_info = upload_response.file_upload.upload_file;
 
@@ -277,11 +278,7 @@ pub async fn upload_file(client: &LinearClient, args: UploadFileArgs) -> Result<
 }
 
 fn guess_content_type(filename: &str) -> String {
-    let ext = filename
-        .rsplit('.')
-        .next()
-        .unwrap_or("")
-        .to_lowercase();
+    let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
 
     match ext.as_str() {
         "png" => "image/png",

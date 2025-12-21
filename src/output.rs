@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use colored::Colorize;
 use serde::Serialize;
-use tabled::{Table, Tabled, settings::Style};
+use tabled::{settings::Style, Table, Tabled};
 
 /// Global output format setting (thread-safe)
 static OUTPUT_JSON: AtomicBool = AtomicBool::new(false);
@@ -23,7 +23,10 @@ where
     F: Fn(&T) -> R,
 {
     if is_json_output() {
-        println!("{}", serde_json::to_string_pretty(items).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(items).unwrap_or_default()
+        );
     } else {
         let rows: Vec<R> = items.iter().map(to_row).collect();
         let table = Table::new(rows).with(Style::rounded()).to_string();
@@ -90,7 +93,8 @@ pub fn status_colored(status: &str, color: Option<&str>) -> String {
         status.blue().to_string()
     } else if lower.contains("review") {
         status.magenta().to_string()
-    } else if lower.contains("blocked") || lower.contains("canceled") || lower.contains("cancelled") {
+    } else if lower.contains("blocked") || lower.contains("canceled") || lower.contains("cancelled")
+    {
         status.red().to_string()
     } else if lower.contains("backlog") || lower.contains("triage") {
         status.bright_black().to_string()

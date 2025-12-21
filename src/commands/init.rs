@@ -7,7 +7,10 @@ pub async fn run() -> Result<()> {
     let config_path = Config::config_path()?;
 
     if config_path.exists() {
-        print!("Config file already exists at {}. Overwrite? [y/N] ", config_path.display());
+        print!(
+            "Config file already exists at {}. Overwrite? [y/N] ",
+            config_path.display()
+        );
         io::stdout().flush().unwrap();
 
         let mut input = String::new();
