@@ -8,7 +8,9 @@ use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::{LinearError, Result};
 use crate::output::{self, format_date, status_colored, truncate};
-use crate::responses::{Connection, CreatedIssue, PageInfo, TeamNode, ViewerResponse, WorkflowStateNode};
+use crate::responses::{
+    Connection, CreatedIssue, PageInfo, TeamNode, ViewerResponse, WorkflowStateNode,
+};
 use crate::types::Issue;
 
 const ISSUE_FIELDS_FRAGMENT: &str = r#"

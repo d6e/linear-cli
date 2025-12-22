@@ -57,7 +57,6 @@ pub fn print_message(message: &str) {
     }
 }
 
-
 /// Format status with color based on state type
 pub fn status_colored(status: &str, color: Option<&str>) -> String {
     if let Some(hex) = color {
