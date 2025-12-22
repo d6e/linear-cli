@@ -6,6 +6,7 @@ use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::output;
+use crate::responses::Connection;
 use crate::types::Project;
 
 const LIST_PROJECTS_QUERY: &str = r#"
@@ -22,12 +23,7 @@ query ListProjects($filter: ProjectFilter) {
 
 #[derive(Deserialize)]
 struct ProjectsResponse {
-    projects: ProjectsConnection,
-}
-
-#[derive(Deserialize)]
-struct ProjectsConnection {
-    nodes: Vec<Project>,
+    projects: Connection<Project>,
 }
 
 #[derive(Tabled)]

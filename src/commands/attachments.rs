@@ -9,6 +9,7 @@ use crate::cli::{AttachUrlArgs, UploadFileArgs};
 use crate::client::LinearClient;
 use crate::error::{LinearError, Result};
 use crate::output::{self, format_date_only, truncate};
+use crate::responses::Connection;
 use crate::types::Attachment;
 
 const LIST_ATTACHMENTS_QUERY: &str = r#"
@@ -75,12 +76,7 @@ struct AttachmentsResponse {
 
 #[derive(Deserialize)]
 struct IssueWithAttachments {
-    attachments: AttachmentsConnection,
-}
-
-#[derive(Deserialize)]
-struct AttachmentsConnection {
-    nodes: Vec<Attachment>,
+    attachments: Connection<Attachment>,
 }
 
 #[derive(Deserialize)]
@@ -96,10 +92,8 @@ struct AttachmentResult {
 }
 
 #[derive(Deserialize)]
-#[allow(dead_code)]
 struct AttachmentInfo {
     title: String,
-    url: Option<String>,
 }
 
 #[derive(Deserialize)]

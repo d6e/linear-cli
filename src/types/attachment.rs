@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[allow(dead_code)]
 pub struct Attachment {
     pub id: String,
     pub title: String,
@@ -9,21 +8,4 @@ pub struct Attachment {
     pub subtitle: Option<String>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
-}
-
-#[derive(Deserialize, Debug)]
-#[allow(dead_code)]
-pub struct UploadFile {
-    #[serde(rename = "uploadUrl")]
-    pub upload_url: String,
-    #[serde(rename = "assetUrl")]
-    pub asset_url: String,
-    pub headers: Vec<UploadHeader>,
-}
-
-#[derive(Deserialize, Debug)]
-#[allow(dead_code)]
-pub struct UploadHeader {
-    pub key: String,
-    pub value: String,
 }

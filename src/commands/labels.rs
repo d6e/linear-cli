@@ -6,6 +6,7 @@ use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::output::{self, status_colored, truncate};
+use crate::responses::Connection;
 
 const LIST_LABELS_QUERY: &str = r#"
 query ListLabels($filter: IssueLabelFilter) {
@@ -23,16 +24,10 @@ query ListLabels($filter: IssueLabelFilter) {
 #[derive(Deserialize)]
 struct LabelsResponse {
     #[serde(rename = "issueLabels")]
-    issue_labels: LabelsConnection,
-}
-
-#[derive(Deserialize)]
-struct LabelsConnection {
-    nodes: Vec<Label>,
+    issue_labels: Connection<Label>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[allow(dead_code)]
 pub struct Label {
     pub id: String,
     pub name: String,

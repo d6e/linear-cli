@@ -100,11 +100,6 @@ impl Cache {
             .map_err(|_| ())
     }
 
-    #[allow(dead_code)]
-    pub fn get_team(&self, key: &str) -> Option<&CachedTeam> {
-        self.teams.get(key)
-    }
-
     pub fn set_team(&mut self, team: CachedTeam) {
         self.teams.insert(team.key.clone(), team);
         self.timestamp = SystemTime::now()

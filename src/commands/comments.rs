@@ -6,6 +6,7 @@ use crate::cli::CommentArgs;
 use crate::client::LinearClient;
 use crate::error::{LinearError, Result};
 use crate::output::{self, format_relative, truncate};
+use crate::responses::Connection;
 
 const LIST_COMMENTS_QUERY: &str = r#"
 query ListComments($issueId: String!) {
@@ -44,16 +45,10 @@ struct CommentsResponse {
 
 #[derive(Deserialize)]
 struct IssueWithComments {
-    comments: CommentsConnection,
-}
-
-#[derive(Deserialize)]
-struct CommentsConnection {
-    nodes: Vec<Comment>,
+    comments: Connection<Comment>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[allow(dead_code)]
 pub struct Comment {
     pub id: String,
     pub body: String,
@@ -63,7 +58,6 @@ pub struct Comment {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[allow(dead_code)]
 pub struct CommentUser {
     pub id: String,
     pub name: String,
@@ -78,15 +72,6 @@ struct CreateCommentResponse {
 #[derive(Deserialize)]
 struct CommentCreateResult {
     success: bool,
-    #[allow(dead_code)]
-    comment: Option<CreatedComment>,
-}
-
-#[derive(Deserialize)]
-#[allow(dead_code)]
-struct CreatedComment {
-    id: String,
-    body: String,
 }
 
 #[derive(Tabled)]

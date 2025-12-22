@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-#[allow(dead_code)]
 pub struct Project {
     pub id: String,
     pub name: String,

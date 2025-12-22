@@ -6,6 +6,7 @@ use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::Result;
 use crate::output::{self, format_date_only};
+use crate::responses::Connection;
 use crate::types::Cycle;
 
 const LIST_CYCLES_QUERY: &str = r#"
@@ -24,12 +25,7 @@ query ListCycles($filter: CycleFilter) {
 
 #[derive(Deserialize)]
 struct CyclesResponse {
-    cycles: CyclesConnection,
-}
-
-#[derive(Deserialize)]
-struct CyclesConnection {
-    nodes: Vec<Cycle>,
+    cycles: Connection<Cycle>,
 }
 
 #[derive(Tabled)]

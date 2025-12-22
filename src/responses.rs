@@ -2,6 +2,12 @@
 
 use serde::Deserialize;
 
+/// Generic connection type for GraphQL node lists.
+#[derive(Deserialize)]
+pub struct Connection<T> {
+    pub nodes: Vec<T>,
+}
+
 /// Pagination info for cursor-based pagination.
 #[derive(Deserialize)]
 pub struct PageInfo {
@@ -27,6 +33,9 @@ pub struct Viewer {
 pub struct WorkflowStateNode {
     pub id: String,
     pub name: String,
+    /// State type: "backlog", "unstarted", "started", "completed", or "canceled"
+    #[serde(rename = "type")]
+    pub state_type: String,
 }
 
 /// Team node with minimal fields for ID lookups.

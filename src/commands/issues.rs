@@ -10,47 +10,54 @@ use crate::error::{LinearError, Result};
 use crate::output::{
     self, format_date, priority_colored, priority_label, status_colored, truncate,
 };
-use crate::responses::{CreatedIssue, PageInfo, TeamNode, ViewerResponse, WorkflowStateNode};
+use crate::responses::{Connection, CreatedIssue, PageInfo, TeamNode, ViewerResponse, WorkflowStateNode};
 use crate::types::Issue;
 
-const LIST_ISSUES_QUERY: &str = r#"
+const ISSUE_FIELDS_FRAGMENT: &str = r#"
+fragment IssueFields on Issue {
+    id
+    identifier
+    title
+    description
+    priority
+    state {
+        id
+        name
+        color
+    }
+    assignee {
+        id
+        name
+        email
+    }
+    team {
+        id
+        key
+        name
+    }
+    project {
+        id
+        name
+        state
+    }
+    cycle {
+        id
+        name
+        number
+        startsAt
+        endsAt
+    }
+    createdAt
+    updatedAt
+}
+"#;
+
+const LIST_ISSUES_QUERY: &str = const_format::concatcp!(
+    r#"
 query ListIssues($filter: IssueFilter, $first: Int, $after: String) {
     issues(filter: $filter, first: $first, after: $after) {
         nodes {
-            id
-            identifier
-            title
-            description
-            priority
-            state {
-                id
-                name
-                color
-            }
-            assignee {
-                id
-                name
-                email
-            }
-            team {
-                id
-                key
-                name
-            }
-            project {
-                id
-                name
-                state
-            }
-            cycle {
-                id
-                name
-                number
-                startsAt
-                endsAt
-            }
-            createdAt
-            updatedAt
+            ...IssueFields
         }
         pageInfo {
             hasNextPage
@@ -58,48 +65,20 @@ query ListIssues($filter: IssueFilter, $first: Int, $after: String) {
         }
     }
 }
-"#;
+"#,
+    ISSUE_FIELDS_FRAGMENT
+);
 
-const GET_ISSUE_QUERY: &str = r#"
+const GET_ISSUE_QUERY: &str = const_format::concatcp!(
+    r#"
 query GetIssue($id: String!) {
     issue(id: $id) {
-        id
-        identifier
-        title
-        description
-        priority
-        state {
-            id
-            name
-            color
-        }
-        assignee {
-            id
-            name
-            email
-        }
-        team {
-            id
-            key
-            name
-        }
-        project {
-            id
-            name
-            state
-        }
-        cycle {
-            id
-            name
-            number
-            startsAt
-            endsAt
-        }
-        createdAt
-        updatedAt
+        ...IssueFields
     }
 }
-"#;
+"#,
+    ISSUE_FIELDS_FRAGMENT
+);
 
 const CREATE_ISSUE_MUTATION: &str = r#"
 mutation CreateIssue($input: IssueCreateInput!) {
@@ -153,6 +132,7 @@ query GetStates($teamId: String!) {
         nodes {
             id
             name
+            type
         }
     }
 }
@@ -201,23 +181,13 @@ struct IssueUpdateResult {
 
 #[derive(Deserialize)]
 struct TeamsResponse {
-    teams: TeamsConnection,
-}
-
-#[derive(Deserialize)]
-struct TeamsConnection {
-    nodes: Vec<TeamNode>,
+    teams: Connection<TeamNode>,
 }
 
 #[derive(Deserialize)]
 struct WorkflowStatesResponse {
     #[serde(rename = "workflowStates")]
-    workflow_states: WorkflowStatesConnection,
-}
-
-#[derive(Deserialize)]
-struct WorkflowStatesConnection {
-    nodes: Vec<WorkflowStateNode>,
+    workflow_states: Connection<WorkflowStateNode>,
 }
 
 #[derive(Tabled)]
@@ -478,11 +448,12 @@ pub async fn update(client: &LinearClient, args: IssueUpdateArgs) -> Result<()> 
             .query(GET_STATES_QUERY, Some(json!({ "teamId": issue.team.id })))
             .await?;
 
+        let status_lower = status_name.to_lowercase();
         let state_id = states_response
             .workflow_states
             .nodes
             .iter()
-            .find(|s| s.name.to_lowercase().contains(&status_name.to_lowercase()))
+            .find(|s| s.name.to_lowercase() == status_lower)
             .map(|s| s.id.clone());
 
         if let Some(id) = state_id {
@@ -539,17 +510,14 @@ pub async fn close(client: &LinearClient, id: &str) -> Result<()> {
         .query(GET_STATES_QUERY, Some(json!({ "teamId": issue.team.id })))
         .await?;
 
-    // Find a "done" or "completed" or "closed" state
+    // Find a completed state using the state type
     let done_state = states_response
         .workflow_states
         .nodes
         .iter()
-        .find(|s| {
-            let name = s.name.to_lowercase();
-            name.contains("done") || name.contains("complete") || name.contains("closed")
-        })
+        .find(|s| s.state_type == "completed")
         .ok_or_else(|| {
-            LinearError::WorkflowStateNotFound("No 'Done' state found for team".to_string())
+            LinearError::WorkflowStateNotFound("No completed state found for team".to_string())
         })?;
 
     let variables = json!({

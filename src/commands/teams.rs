@@ -4,6 +4,7 @@ use tabled::Tabled;
 use crate::client::LinearClient;
 use crate::error::Result;
 use crate::output;
+use crate::responses::Connection;
 use crate::types::Team;
 
 const LIST_TEAMS_QUERY: &str = r#"
@@ -20,12 +21,7 @@ query ListTeams {
 
 #[derive(Deserialize)]
 struct TeamsResponse {
-    teams: TeamsConnection,
-}
-
-#[derive(Deserialize)]
-struct TeamsConnection {
-    nodes: Vec<Team>,
+    teams: Connection<Team>,
 }
 
 #[derive(Tabled)]
