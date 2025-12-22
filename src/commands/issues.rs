@@ -7,9 +7,7 @@ use crate::cli::{IssueCreateArgs, IssueListArgs, IssueUpdateArgs};
 use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::{LinearError, Result};
-use crate::output::{
-    self, format_date, priority_colored, priority_label, status_colored, truncate,
-};
+use crate::output::{self, format_date, status_colored, truncate};
 use crate::responses::{Connection, CreatedIssue, PageInfo, TeamNode, ViewerResponse, WorkflowStateNode};
 use crate::types::Issue;
 
@@ -221,9 +219,9 @@ impl From<&Issue> for IssueRow {
                 status_colored(&status_name, status_color.as_deref())
             },
             priority: if output::is_json_output() {
-                priority_label(issue.priority)
+                issue.priority.to_string()
             } else {
-                priority_colored(issue.priority)
+                issue.priority.colored()
             },
             assignee: issue
                 .assignee
@@ -336,7 +334,7 @@ pub async fn show(client: &LinearClient, id: &str) -> Result<()> {
             .unwrap_or(("-", None));
         println!("Status:   {}", status_colored(status_name, status_color));
 
-        println!("Priority: {}", priority_colored(issue.priority));
+        println!("Priority: {}", issue.priority.colored());
 
         println!(
             "Assignee: {}",

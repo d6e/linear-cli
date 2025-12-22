@@ -1,6 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use clap_complete::Shell;
 
+use crate::types::Priority;
+
 #[derive(Parser)]
 #[command(name = "linear")]
 #[command(about = "A CLI for Linear issue tracking", version)]
@@ -197,9 +199,9 @@ pub struct IssueCreateArgs {
     #[arg(long)]
     pub project: Option<String>,
 
-    /// Priority (0=none, 1=urgent, 2=high, 3=medium, 4=low)
-    #[arg(long, value_parser = clap::value_parser!(i32).range(0..=4))]
-    pub priority: Option<i32>,
+    /// Priority level
+    #[arg(long, value_enum)]
+    pub priority: Option<Priority>,
 }
 
 #[derive(Args)]
@@ -219,9 +221,9 @@ pub struct IssueUpdateArgs {
     #[arg(long)]
     pub status: Option<String>,
 
-    /// New priority (0=none, 1=urgent, 2=high, 3=medium, 4=low)
-    #[arg(long, value_parser = clap::value_parser!(i32).range(0..=4))]
-    pub priority: Option<i32>,
+    /// New priority level
+    #[arg(long, value_enum)]
+    pub priority: Option<Priority>,
 
     /// Assign to user (ID or "me")
     #[arg(long)]

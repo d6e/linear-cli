@@ -32,70 +32,73 @@ async fn run() -> Result<()> {
     // Set global output format
     output::set_json_output(cli.json);
 
-    // Handle completions command (doesn't require config/client)
-    if let Commands::Completions { shell } = cli.command {
-        let mut cmd = Cli::command();
-        generate(shell, &mut cmd, "linear", &mut io::stdout());
-        return Ok(());
-    }
-
-    // Handle init command (doesn't require existing config)
-    if let Commands::Init = cli.command {
-        return commands::init::run().await;
-    }
-
-    let config = Config::load()?;
-    let client = LinearClient::new(config.api_key()?);
-
     match cli.command {
-        Commands::Teams => {
-            commands::teams::list(&client).await?;
+        // Commands that don't require config/client
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            generate(shell, &mut cmd, "linear", &mut io::stdout());
         }
-        Commands::Projects { team } => {
-            commands::projects::list(&client, &config, team).await?;
+        Commands::Init => {
+            commands::init::run().await?;
         }
-        Commands::Cycles { team } => {
-            commands::cycles::list(&client, &config, team).await?;
+        // Commands that require config and client
+        command => {
+            let config = Config::load()?;
+            let client = LinearClient::new(config.api_key()?);
+
+            match command {
+                Commands::Teams => {
+                    commands::teams::list(&client).await?;
+                }
+                Commands::Projects { team } => {
+                    commands::projects::list(&client, &config, team).await?;
+                }
+                Commands::Cycles { team } => {
+                    commands::cycles::list(&client, &config, team).await?;
+                }
+                Commands::Issues(args) => {
+                    commands::issues::list(&client, &config, args).await?;
+                }
+                Commands::Labels { team } => {
+                    commands::labels::list(&client, &config, team).await?;
+                }
+                Commands::Issue { action } => match action {
+                    IssueCommands::List(args) => {
+                        commands::issues::list(&client, &config, args).await?;
+                    }
+                    IssueCommands::Show { id } => {
+                        commands::issues::show(&client, &id).await?;
+                    }
+                    IssueCommands::Create(args) => {
+                        commands::issues::create(&client, &config, args).await?;
+                    }
+                    IssueCommands::Update(args) => {
+                        commands::issues::update(&client, args).await?;
+                    }
+                    IssueCommands::Close { id } => {
+                        commands::issues::close(&client, &id).await?;
+                    }
+                    IssueCommands::Attachments { id } => {
+                        commands::attachments::list(&client, &id).await?;
+                    }
+                    IssueCommands::Attach(args) => {
+                        commands::attachments::attach_url(&client, args).await?;
+                    }
+                    IssueCommands::Upload(args) => {
+                        commands::attachments::upload_file(&client, args).await?;
+                    }
+                    IssueCommands::Comments { id } => {
+                        commands::comments::list(&client, &id).await?;
+                    }
+                    IssueCommands::Comment(args) => {
+                        commands::comments::add(&client, args).await?;
+                    }
+                },
+                Commands::Completions { .. } | Commands::Init => {
+                    // Already handled above
+                }
+            }
         }
-        Commands::Issues(args) => {
-            commands::issues::list(&client, &config, args).await?;
-        }
-        Commands::Labels { team } => {
-            commands::labels::list(&client, &config, team).await?;
-        }
-        Commands::Issue { action } => match action {
-            IssueCommands::List(args) => {
-                commands::issues::list(&client, &config, args).await?;
-            }
-            IssueCommands::Show { id } => {
-                commands::issues::show(&client, &id).await?;
-            }
-            IssueCommands::Create(args) => {
-                commands::issues::create(&client, &config, args).await?;
-            }
-            IssueCommands::Update(args) => {
-                commands::issues::update(&client, args).await?;
-            }
-            IssueCommands::Close { id } => {
-                commands::issues::close(&client, &id).await?;
-            }
-            IssueCommands::Attachments { id } => {
-                commands::attachments::list(&client, &id).await?;
-            }
-            IssueCommands::Attach(args) => {
-                commands::attachments::attach_url(&client, args).await?;
-            }
-            IssueCommands::Upload(args) => {
-                commands::attachments::upload_file(&client, args).await?;
-            }
-            IssueCommands::Comments { id } => {
-                commands::comments::list(&client, &id).await?;
-            }
-            IssueCommands::Comment(args) => {
-                commands::comments::add(&client, args).await?;
-            }
-        },
-        Commands::Completions { .. } | Commands::Init => unreachable!(),
     }
 
     Ok(())

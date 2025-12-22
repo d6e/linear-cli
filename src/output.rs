@@ -57,29 +57,6 @@ pub fn print_message(message: &str) {
     }
 }
 
-/// Format priority with color
-pub fn priority_colored(priority: i32) -> String {
-    let label = priority_label(priority);
-    match priority {
-        1 => label.red().bold().to_string(),
-        2 => label.yellow().bold().to_string(),
-        3 => label.blue().to_string(),
-        4 => label.bright_black().to_string(),
-        _ => label,
-    }
-}
-
-/// Get priority label without color
-pub fn priority_label(priority: i32) -> String {
-    match priority {
-        0 => "None".to_string(),
-        1 => "Urgent".to_string(),
-        2 => "High".to_string(),
-        3 => "Medium".to_string(),
-        4 => "Low".to_string(),
-        _ => format!("P{priority}"),
-    }
-}
 
 /// Format status with color based on state type
 pub fn status_colored(status: &str, color: Option<&str>) -> String {

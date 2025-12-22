@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Cycle, Project, Team, User};
+use super::{Cycle, Priority, Project, Team, User};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Issue {
@@ -8,7 +8,7 @@ pub struct Issue {
     pub identifier: String,
     pub title: String,
     pub description: Option<String>,
-    pub priority: i32,
+    pub priority: Priority,
     pub state: Option<WorkflowState>,
     pub assignee: Option<User>,
     pub team: Team,
