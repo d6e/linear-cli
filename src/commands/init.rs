@@ -11,10 +11,10 @@ pub async fn run() -> Result<()> {
             "Config file already exists at {}. Overwrite? [y/N] ",
             config_path.display()
         );
-        io::stdout().flush().unwrap();
+        io::stdout().flush()?;
 
         let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin().read_line(&mut input)?;
 
         if !input.trim().eq_ignore_ascii_case("y") {
             println!("Aborted.");
@@ -27,10 +27,10 @@ pub async fn run() -> Result<()> {
 
     // Get API key
     print!("Enter your Linear API key (create one at https://linear.app/settings/api): ");
-    io::stdout().flush().unwrap();
+    io::stdout().flush()?;
 
     let mut api_key = String::new();
-    io::stdin().read_line(&mut api_key).unwrap();
+    io::stdin().read_line(&mut api_key)?;
     let api_key = api_key.trim();
 
     if api_key.is_empty() {
@@ -39,10 +39,10 @@ pub async fn run() -> Result<()> {
 
     // Get default team (optional)
     print!("Enter default team key (e.g., ENG) [optional]: ");
-    io::stdout().flush().unwrap();
+    io::stdout().flush()?;
 
     let mut default_team = String::new();
-    io::stdin().read_line(&mut default_team).unwrap();
+    io::stdin().read_line(&mut default_team)?;
     let default_team = default_team.trim();
 
     // Create config directory if it doesn't exist

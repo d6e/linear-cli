@@ -255,7 +255,10 @@ pub async fn upload_file(client: &LinearClient, args: UploadFileArgs) -> Result<
     if !upload_result.status().is_success() {
         return Err(LinearError::UploadFailed {
             status: upload_result.status().as_u16(),
-            message: upload_result.text().await.unwrap_or_default(),
+            message: upload_result
+                .text()
+                .await
+                .unwrap_or_else(|_| "<failed to read response body>".to_string()),
         });
     }
 

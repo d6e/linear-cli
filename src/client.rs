@@ -55,7 +55,10 @@ impl LinearClient {
         if !response.status().is_success() {
             return Err(LinearError::ApiError {
                 status: response.status().as_u16(),
-                message: response.text().await.unwrap_or_default(),
+                message: response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "<failed to read response body>".to_string()),
             });
         }
 

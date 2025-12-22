@@ -6,6 +6,9 @@ pub enum LinearError {
     #[error("HTTP request failed: {0}")]
     Http(#[from] reqwest::Error),
 
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+
     #[error("API error (status {status}): {message}")]
     ApiError { status: u16, message: String },
 

@@ -25,7 +25,8 @@ where
     if is_json_output() {
         println!(
             "{}",
-            serde_json::to_string_pretty(items).unwrap_or_default()
+            serde_json::to_string_pretty(items)
+                .unwrap_or_else(|_| "<serialization error>".to_string())
         );
     } else {
         let rows: Vec<R> = items.iter().map(to_row).collect();
@@ -37,7 +38,11 @@ where
 /// Print a single item or JSON depending on output mode
 pub fn print_item<T: Serialize>(item: &T, display: impl FnOnce(&T)) {
     if is_json_output() {
-        println!("{}", serde_json::to_string_pretty(item).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(item)
+                .unwrap_or_else(|_| "<serialization error>".to_string())
+        );
     } else {
         display(item);
     }

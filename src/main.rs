@@ -18,7 +18,7 @@ use client::LinearClient;
 use config::Config;
 use error::Result;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(e) = run().await {
         eprintln!("Error: {e}");
