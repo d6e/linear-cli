@@ -24,7 +24,7 @@ Either set an environment variable:
 export LINEAR_API_KEY="lin_api_xxxxxxxxxxxxx"
 ```
 
-Or create a config file at `~/.config/linear/config.toml`:
+Or create a config file:
 
 ```toml
 api_key = "lin_api_xxxxxxxxxxxxx"
@@ -32,6 +32,16 @@ default_team = "ENG"  # optional
 ```
 
 The environment variable takes precedence over the config file.
+
+### Config File Location
+
+| Platform | Path |
+|----------|------|
+| Linux    | `~/.config/linear/config.toml` |
+| macOS    | `~/Library/Application Support/linear/config.toml` |
+| Windows  | `C:\Users\<User>\AppData\Roaming\linear\config\config.toml` |
+
+Run `linear init` to create the config file interactively.
 
 ## Usage
 
