@@ -1,7 +1,15 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 
 use crate::types::Priority;
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum OutputFormat {
+    #[default]
+    Table,
+    Json,
+    Compact,
+}
 
 #[derive(Parser)]
 #[command(name = "linear")]
@@ -16,15 +24,38 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
 
-    /// Output as JSON for scripting
-    #[arg(long, global = true)]
+    /// Output format (table, json, compact)
+    #[arg(long, short = 'o', global = true, value_enum, default_value = "table")]
+    pub format: OutputFormat,
+
+    /// Output as JSON (alias for --format json)
+    #[arg(long, global = true, hide = true)]
     pub json: bool,
+
+    /// Suppress success messages
+    #[arg(long, short, global = true)]
+    pub quiet: bool,
+
+    /// Show detailed error information
+    #[arg(long, short, global = true)]
+    pub verbose: bool,
+}
+
+impl Cli {
+    /// Get the effective output format, considering --json flag
+    pub fn output_format(&self) -> OutputFormat {
+        if self.json {
+            OutputFormat::Json
+        } else {
+            self.format
+        }
+    }
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
     /// Manage issues
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "i", after_help = "EXAMPLES:
     linear issue list --mine --limit 10
     linear issue show ENG-123
     linear issue create -t \"Bug fix\" -d \"Description\" --priority 2
@@ -35,18 +66,18 @@ pub enum Commands {
         action: IssueCommands,
     },
     /// List issues (alias for 'issue list')
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "is", after_help = "EXAMPLES:
     linear issues --mine
     linear issues --team ENG --status \"In Progress\"
     linear issues --project \"Backend\" --limit 50")]
     Issues(IssueListArgs),
     /// List teams
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "t", after_help = "EXAMPLES:
     linear teams
-    linear teams --json")]
+    linear teams --format json")]
     Teams,
     /// List projects
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "p", after_help = "EXAMPLES:
     linear projects
     linear projects --team ENG")]
     Projects {
@@ -64,7 +95,7 @@ pub enum Commands {
         team: Option<String>,
     },
     /// List labels
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "l", after_help = "EXAMPLES:
     linear labels
     linear labels --team ENG")]
     Labels {
@@ -90,12 +121,12 @@ pub enum Commands {
 #[derive(Subcommand)]
 pub enum IssueCommands {
     /// List issues
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "ls", after_help = "EXAMPLES:
     linear issue list --mine
     linear issue list --team ENG --status \"In Progress\"")]
     List(IssueListArgs),
     /// Show issue details
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "s", after_help = "EXAMPLES:
     linear issue show ENG-123
     linear issue show abc123-uuid-here")]
     Show {
@@ -103,12 +134,12 @@ pub enum IssueCommands {
         id: String,
     },
     /// Create a new issue
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "c", after_help = "EXAMPLES:
     linear issue create -t \"Fix login bug\"
     linear issue create -t \"New feature\" -d \"Description\" --priority 2")]
     Create(IssueCreateArgs),
     /// Update an existing issue
-    #[command(after_help = "EXAMPLES:
+    #[command(alias = "u", after_help = "EXAMPLES:
     linear issue update ENG-123 --status \"Done\"
     linear issue update ENG-123 --assignee me
     linear issue update ENG-123 --priority 2")]

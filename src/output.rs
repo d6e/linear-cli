@@ -1,41 +1,74 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use colored::Colorize;
 use serde::Serialize;
-use tabled::{settings::Style, Table, Tabled};
+use tabled::settings::Style;
+use tabled::{Table, Tabled};
+
+use crate::cli::OutputFormat;
 
 /// Global output format setting (thread-safe)
-static OUTPUT_JSON: AtomicBool = AtomicBool::new(false);
+/// 0 = Table, 1 = Json, 2 = Compact
+static OUTPUT_FORMAT: AtomicU8 = AtomicU8::new(0);
+static QUIET_MODE: AtomicBool = AtomicBool::new(false);
 
-pub fn set_json_output(json: bool) {
-    OUTPUT_JSON.store(json, Ordering::Relaxed);
+pub fn set_format(format: OutputFormat) {
+    let value = match format {
+        OutputFormat::Table => 0,
+        OutputFormat::Json => 1,
+        OutputFormat::Compact => 2,
+    };
+    OUTPUT_FORMAT.store(value, Ordering::Relaxed);
 }
 
-pub fn is_json_output() -> bool {
-    OUTPUT_JSON.load(Ordering::Relaxed)
-}
-
-/// Print a table or JSON depending on output mode
-pub fn print_table<T, R, F>(items: &[T], to_row: F)
-where
-    T: Serialize,
-    R: Tabled,
-    F: Fn(&T) -> R,
-{
-    if is_json_output() {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(items)
-                .unwrap_or_else(|_| "<serialization error>".to_string())
-        );
-    } else {
-        let rows: Vec<R> = items.iter().map(to_row).collect();
-        let table = Table::new(rows).with(Style::rounded()).to_string();
-        println!("{table}");
+pub fn get_format() -> OutputFormat {
+    match OUTPUT_FORMAT.load(Ordering::Relaxed) {
+        1 => OutputFormat::Json,
+        2 => OutputFormat::Compact,
+        _ => OutputFormat::Table,
     }
 }
 
-/// Print a single item or JSON depending on output mode
+pub fn set_quiet(quiet: bool) {
+    QUIET_MODE.store(quiet, Ordering::Relaxed);
+}
+
+pub fn is_quiet() -> bool {
+    QUIET_MODE.load(Ordering::Relaxed)
+}
+
+pub fn is_json_output() -> bool {
+    matches!(get_format(), OutputFormat::Json)
+}
+
+/// Print a table, JSON, or compact output depending on format
+pub fn print_table<T, R>(items: &[T], to_row: impl Fn(&T) -> R, to_compact: impl Fn(&T) -> String)
+where
+    T: Serialize,
+    R: Tabled,
+{
+    match get_format() {
+        OutputFormat::Json => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(items)
+                    .unwrap_or_else(|_| "<serialization error>".to_string())
+            );
+        }
+        OutputFormat::Compact => {
+            for item in items {
+                println!("{}", to_compact(item));
+            }
+        }
+        OutputFormat::Table => {
+            let rows: Vec<R> = items.iter().map(|item| to_row(item)).collect();
+            let table = Table::new(rows).with(Style::rounded()).to_string();
+            println!("{table}");
+        }
+    }
+}
+
+/// Print a single item as JSON or custom display
 pub fn print_item<T: Serialize>(item: &T, display: impl FnOnce(&T)) {
     if is_json_output() {
         println!(
@@ -48,8 +81,11 @@ pub fn print_item<T: Serialize>(item: &T, display: impl FnOnce(&T)) {
     }
 }
 
-/// Print a message (skipped in JSON mode, or prints simple object)
+/// Print a success message (respects quiet mode)
 pub fn print_message(message: &str) {
+    if is_quiet() {
+        return;
+    }
     if is_json_output() {
         println!(r#"{{"message": "{}"}}"#, message.replace('"', "\\\""));
     } else {
@@ -60,7 +96,6 @@ pub fn print_message(message: &str) {
 /// Format status with color based on state type
 pub fn status_colored(status: &str, color: Option<&str>) -> String {
     if let Some(hex) = color {
-        // Parse hex color and apply
         if let Ok((r, g, b)) = parse_hex_color(hex) {
             return status.truecolor(r, g, b).to_string();
         }
@@ -103,7 +138,6 @@ pub fn format_date(iso: &str) -> String {
         let local: DateTime<Local> = dt.into();
         local.format("%Y-%m-%d %H:%M").to_string()
     } else {
-        // Fallback: just extract date portion
         iso.split('T').next().unwrap_or(iso).to_string()
     }
 }

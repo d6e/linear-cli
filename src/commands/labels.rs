@@ -5,8 +5,32 @@ use tabled::Tabled;
 use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::Result;
-use crate::output::{self, status_colored, truncate};
+use crate::output::{self, is_json_output, status_colored, truncate};
 use crate::responses::Connection;
+
+#[derive(Tabled)]
+struct LabelRow {
+    #[tabled(rename = "Name")]
+    name: String,
+    #[tabled(rename = "Description")]
+    description: String,
+    #[tabled(rename = "ID")]
+    id: String,
+}
+
+impl LabelRow {
+    fn from_label(label: &Label) -> Self {
+        Self {
+            name: if is_json_output() {
+                label.name.clone()
+            } else {
+                status_colored(&label.name, Some(&label.color))
+            },
+            description: truncate(label.description.as_deref().unwrap_or(""), 40),
+            id: label.id.clone(),
+        }
+    }
+}
 
 const LIST_LABELS_QUERY: &str = r#"
 query ListLabels($filter: IssueLabelFilter) {
@@ -35,26 +59,6 @@ pub struct Label {
     pub description: Option<String>,
 }
 
-#[derive(Tabled)]
-struct LabelRow {
-    #[tabled(rename = "Name")]
-    name: String,
-    #[tabled(rename = "Description")]
-    description: String,
-    #[tabled(rename = "ID")]
-    id: String,
-}
-
-impl From<&Label> for LabelRow {
-    fn from(label: &Label) -> Self {
-        Self {
-            name: status_colored(&label.name, Some(&label.color)),
-            description: truncate(label.description.as_deref().unwrap_or(""), 40),
-            id: label.id.clone(),
-        }
-    }
-}
-
 pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) -> Result<()> {
     let team_key = config.resolve_team(team.as_deref());
 
@@ -76,7 +80,11 @@ pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) 
         return Ok(());
     }
 
-    output::print_table(&labels, |l| LabelRow::from(l));
+    output::print_table(
+        &labels,
+        LabelRow::from_label,
+        |label| label.name.clone(),
+    );
 
     Ok(())
 }

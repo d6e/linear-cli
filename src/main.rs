@@ -17,11 +17,22 @@ use cli::{Cli, Commands, IssueCommands};
 use client::LinearClient;
 use config::Config;
 use error::Result;
+use std::error::Error;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(e) = run().await {
         eprintln!("Error: {e}");
+
+        // Show error chain if verbose flag was passed
+        if std::env::args().any(|arg| arg == "--verbose" || arg == "-v") {
+            let mut source = e.source();
+            while let Some(cause) = source {
+                eprintln!("Caused by: {cause}");
+                source = std::error::Error::source(cause);
+            }
+        }
+
         std::process::exit(1);
     }
 }
@@ -30,7 +41,8 @@ async fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // Set global output format
-    output::set_json_output(cli.json);
+    output::set_format(cli.output_format());
+    output::set_quiet(cli.quiet);
 
     match cli.command {
         // Commands that don't require config/client

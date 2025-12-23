@@ -8,6 +8,30 @@ use crate::error::{LinearError, Result};
 use crate::output::{self, format_relative, truncate};
 use crate::responses::Connection;
 
+#[derive(Tabled)]
+struct CommentRow {
+    #[tabled(rename = "Author")]
+    author: String,
+    #[tabled(rename = "Comment")]
+    comment: String,
+    #[tabled(rename = "When")]
+    when: String,
+}
+
+impl From<&Comment> for CommentRow {
+    fn from(comment: &Comment) -> Self {
+        Self {
+            author: comment
+                .user
+                .as_ref()
+                .map(|u| u.name.clone())
+                .unwrap_or_else(|| "Unknown".to_string()),
+            comment: truncate(&comment.body.replace('\n', " "), 60),
+            when: format_relative(&comment.created_at),
+        }
+    }
+}
+
 const LIST_COMMENTS_QUERY: &str = r#"
 query ListComments($issueId: String!) {
     issue(id: $issueId) {
@@ -74,30 +98,6 @@ struct CommentCreateResult {
     success: bool,
 }
 
-#[derive(Tabled)]
-struct CommentRow {
-    #[tabled(rename = "Author")]
-    author: String,
-    #[tabled(rename = "Comment")]
-    body: String,
-    #[tabled(rename = "When")]
-    created_at: String,
-}
-
-impl From<&Comment> for CommentRow {
-    fn from(comment: &Comment) -> Self {
-        Self {
-            author: comment
-                .user
-                .as_ref()
-                .map(|u| u.name.clone())
-                .unwrap_or_else(|| "Unknown".to_string()),
-            body: truncate(&comment.body.replace('\n', " "), 60),
-            created_at: format_relative(&comment.created_at),
-        }
-    }
-}
-
 pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
     let variables = json!({ "issueId": issue_id });
     let response: CommentsResponse = client.query(LIST_COMMENTS_QUERY, Some(variables)).await?;
@@ -113,7 +113,18 @@ pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
         return Ok(());
     }
 
-    output::print_table(&comments, |c| CommentRow::from(c));
+    output::print_table(
+        &comments,
+        |comment| CommentRow::from(comment),
+        |comment| {
+            let author = comment
+                .user
+                .as_ref()
+                .map(|u| u.name.as_str())
+                .unwrap_or("Unknown");
+            format!("{}: {}", author, truncate(&comment.body, 50))
+        },
+    );
 
     Ok(())
 }

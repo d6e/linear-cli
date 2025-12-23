@@ -7,11 +7,55 @@ use crate::cli::{IssueCreateArgs, IssueListArgs, IssueUpdateArgs};
 use crate::client::LinearClient;
 use crate::config::Config;
 use crate::error::{LinearError, Result};
-use crate::output::{self, format_date, status_colored, truncate};
+use crate::output::{self, format_date, is_json_output, status_colored, truncate};
 use crate::responses::{
     Connection, CreatedIssue, PageInfo, TeamNode, ViewerResponse, WorkflowStateNode,
 };
 use crate::types::Issue;
+
+#[derive(Tabled)]
+struct IssueRow {
+    #[tabled(rename = "ID")]
+    id: String,
+    #[tabled(rename = "Title")]
+    title: String,
+    #[tabled(rename = "Status")]
+    status: String,
+    #[tabled(rename = "Priority")]
+    priority: String,
+    #[tabled(rename = "Assignee")]
+    assignee: String,
+}
+
+impl From<&Issue> for IssueRow {
+    fn from(issue: &Issue) -> Self {
+        let (status_name, status_color) = issue
+            .state
+            .as_ref()
+            .map(|s| (s.name.clone(), Some(s.color.clone())))
+            .unwrap_or_default();
+
+        Self {
+            id: issue.identifier.clone(),
+            title: truncate(&issue.title, 50),
+            status: if is_json_output() {
+                status_name
+            } else {
+                status_colored(&status_name, status_color.as_deref())
+            },
+            priority: if is_json_output() {
+                issue.priority.to_string()
+            } else {
+                issue.priority.colored()
+            },
+            assignee: issue
+                .assignee
+                .as_ref()
+                .map(|u| u.name.clone())
+                .unwrap_or_default(),
+        }
+    }
+}
 
 const ISSUE_FIELDS_FRAGMENT: &str = r#"
 fragment IssueFields on Issue {
@@ -190,49 +234,6 @@ struct WorkflowStatesResponse {
     workflow_states: Connection<WorkflowStateNode>,
 }
 
-#[derive(Tabled)]
-struct IssueRow {
-    #[tabled(rename = "ID")]
-    id: String,
-    #[tabled(rename = "Title")]
-    title: String,
-    #[tabled(rename = "Status")]
-    status: String,
-    #[tabled(rename = "Priority")]
-    priority: String,
-    #[tabled(rename = "Assignee")]
-    assignee: String,
-}
-
-impl From<&Issue> for IssueRow {
-    fn from(issue: &Issue) -> Self {
-        let (status_name, status_color) = issue
-            .state
-            .as_ref()
-            .map(|s| (s.name.clone(), Some(s.color.clone())))
-            .unwrap_or_default();
-
-        Self {
-            id: issue.identifier.clone(),
-            title: truncate(&issue.title, 50),
-            status: if output::is_json_output() {
-                status_name
-            } else {
-                status_colored(&status_name, status_color.as_deref())
-            },
-            priority: if output::is_json_output() {
-                issue.priority.to_string()
-            } else {
-                issue.priority.colored()
-            },
-            assignee: issue
-                .assignee
-                .as_ref()
-                .map(|u| u.name.clone())
-                .unwrap_or_default(),
-        }
-    }
-}
 
 pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -> Result<()> {
     let mut filter = serde_json::Map::new();
@@ -303,7 +304,23 @@ pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -
         }
     }
 
-    output::print_table(&all_issues, |i| IssueRow::from(i));
+    output::print_table(
+        &all_issues,
+        |issue| IssueRow::from(issue),
+        |issue| {
+            let status = issue
+                .state
+                .as_ref()
+                .map(|s| s.name.as_str())
+                .unwrap_or("-");
+            format!(
+                "{} | {} | {}",
+                issue.identifier,
+                truncate(&issue.title, 50),
+                status
+            )
+        },
+    );
 
     Ok(())
 }

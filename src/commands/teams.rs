@@ -7,23 +7,6 @@ use crate::output;
 use crate::responses::Connection;
 use crate::types::Team;
 
-const LIST_TEAMS_QUERY: &str = r#"
-query ListTeams {
-    teams {
-        nodes {
-            id
-            key
-            name
-        }
-    }
-}
-"#;
-
-#[derive(Deserialize)]
-struct TeamsResponse {
-    teams: Connection<Team>,
-}
-
 #[derive(Tabled)]
 struct TeamRow {
     #[tabled(rename = "Key")]
@@ -44,10 +27,31 @@ impl From<&Team> for TeamRow {
     }
 }
 
+const LIST_TEAMS_QUERY: &str = r#"
+query ListTeams {
+    teams {
+        nodes {
+            id
+            key
+            name
+        }
+    }
+}
+"#;
+
+#[derive(Deserialize)]
+struct TeamsResponse {
+    teams: Connection<Team>,
+}
+
 pub async fn list(client: &LinearClient) -> Result<()> {
     let response: TeamsResponse = client.query(LIST_TEAMS_QUERY, None).await?;
 
-    output::print_table(&response.teams.nodes, |t| TeamRow::from(t));
+    output::print_table(
+        &response.teams.nodes,
+        |team| TeamRow::from(team),
+        |team| format!("{} | {}", team.key, team.name),
+    );
 
     Ok(())
 }

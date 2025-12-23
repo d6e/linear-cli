@@ -9,23 +9,6 @@ use crate::output;
 use crate::responses::Connection;
 use crate::types::Project;
 
-const LIST_PROJECTS_QUERY: &str = r#"
-query ListProjects($filter: ProjectFilter) {
-    projects(filter: $filter) {
-        nodes {
-            id
-            name
-            state
-        }
-    }
-}
-"#;
-
-#[derive(Deserialize)]
-struct ProjectsResponse {
-    projects: Connection<Project>,
-}
-
 #[derive(Tabled)]
 struct ProjectRow {
     #[tabled(rename = "Name")]
@@ -46,6 +29,23 @@ impl From<&Project> for ProjectRow {
     }
 }
 
+const LIST_PROJECTS_QUERY: &str = r#"
+query ListProjects($filter: ProjectFilter) {
+    projects(filter: $filter) {
+        nodes {
+            id
+            name
+            state
+        }
+    }
+}
+"#;
+
+#[derive(Deserialize)]
+struct ProjectsResponse {
+    projects: Connection<Project>,
+}
+
 pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) -> Result<()> {
     let team_key = config.resolve_team(team.as_deref());
 
@@ -61,7 +61,17 @@ pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) 
 
     let response: ProjectsResponse = client.query(LIST_PROJECTS_QUERY, variables).await?;
 
-    output::print_table(&response.projects.nodes, |p| ProjectRow::from(p));
+    output::print_table(
+        &response.projects.nodes,
+        |project| ProjectRow::from(project),
+        |project| {
+            format!(
+                "{} | {}",
+                project.name,
+                project.state.as_deref().unwrap_or("-")
+            )
+        },
+    );
 
     Ok(())
 }

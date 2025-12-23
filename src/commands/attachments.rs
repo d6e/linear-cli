@@ -12,6 +12,26 @@ use crate::output::{self, format_date_only, truncate};
 use crate::responses::Connection;
 use crate::types::Attachment;
 
+#[derive(Tabled)]
+struct AttachmentRow {
+    #[tabled(rename = "Title")]
+    title: String,
+    #[tabled(rename = "URL")]
+    url: String,
+    #[tabled(rename = "Created")]
+    created: String,
+}
+
+impl From<&Attachment> for AttachmentRow {
+    fn from(attachment: &Attachment) -> Self {
+        Self {
+            title: truncate(&attachment.title, 40),
+            url: truncate(attachment.url.as_deref().unwrap_or("-"), 50),
+            created: format_date_only(&attachment.created_at),
+        }
+    }
+}
+
 const LIST_ATTACHMENTS_QUERY: &str = r#"
 query ListAttachments($issueId: String!) {
     issue(id: $issueId) {
@@ -129,26 +149,6 @@ struct CreateAttachmentResponse {
     attachment_create: AttachmentResult,
 }
 
-#[derive(Tabled)]
-struct AttachmentRow {
-    #[tabled(rename = "Title")]
-    title: String,
-    #[tabled(rename = "URL")]
-    url: String,
-    #[tabled(rename = "Created")]
-    created_at: String,
-}
-
-impl From<&Attachment> for AttachmentRow {
-    fn from(attachment: &Attachment) -> Self {
-        Self {
-            title: truncate(&attachment.title, 40),
-            url: truncate(attachment.url.as_deref().unwrap_or("-"), 50),
-            created_at: format_date_only(&attachment.created_at),
-        }
-    }
-}
-
 pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
     let variables = json!({ "issueId": issue_id });
     let response: AttachmentsResponse = client
@@ -166,7 +166,17 @@ pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
         return Ok(());
     }
 
-    output::print_table(&attachments, |a| AttachmentRow::from(a));
+    output::print_table(
+        &attachments,
+        |attachment| AttachmentRow::from(attachment),
+        |attachment| {
+            format!(
+                "{} | {}",
+                truncate(&attachment.title, 40),
+                attachment.url.as_deref().unwrap_or("-")
+            )
+        },
+    );
 
     Ok(())
 }
