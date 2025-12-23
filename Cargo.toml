@@ -3,6 +3,10 @@ name = "linear-cli"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "linear"
+path = "src/main.rs"
+
 [dependencies]
 tokio = { version = "1.42", features = ["rt", "macros"] }
 reqwest = { version = "0.12", features = ["json"] }

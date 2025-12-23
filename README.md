@@ -8,9 +8,8 @@ A command-line interface for [Linear](https://linear.app) issue tracking.
 # Build from source
 cargo build --release
 
-# Binary will be at target/release/linear-cli
-# Optionally copy to your PATH
-cp target/release/linear-cli ~/.local/bin/linear
+# Binary will be at target/release/linear
+cp target/release/linear ~/.local/bin/
 ```
 
 ## Configuration
