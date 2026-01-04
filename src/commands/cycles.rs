@@ -1,10 +1,11 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tabled::Tabled;
 
+use crate::cli::CycleListArgs;
 use crate::client::LinearClient;
 use crate::config::Config;
-use crate::error::Result;
+use crate::error::{LinearError, Result};
 use crate::output::{self, format_date_only};
 use crate::responses::Connection;
 use crate::types::Cycle;
@@ -46,13 +47,56 @@ query ListCycles($filter: CycleFilter) {
 }
 "#;
 
+const GET_CYCLE_QUERY: &str = r#"
+query GetCycle($id: String!) {
+    cycle(id: $id) {
+        id
+        name
+        number
+        startsAt
+        endsAt
+        team {
+            id
+            key
+            name
+        }
+    }
+}
+"#;
+
 #[derive(Deserialize)]
 struct CyclesResponse {
     cycles: Connection<Cycle>,
 }
 
-pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) -> Result<()> {
-    let team_key = config.resolve_team(team.as_deref());
+#[derive(Deserialize)]
+struct CycleResponse {
+    cycle: Option<CycleWithTeam>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct CycleWithTeam {
+    #[allow(dead_code)]
+    id: String,
+    name: Option<String>,
+    number: i32,
+    #[serde(rename = "startsAt")]
+    starts_at: String,
+    #[serde(rename = "endsAt")]
+    ends_at: String,
+    team: Team,
+}
+
+#[derive(Deserialize, Serialize)]
+struct Team {
+    #[allow(dead_code)]
+    id: String,
+    key: String,
+    name: String,
+}
+
+pub async fn list(client: &LinearClient, config: &Config, args: CycleListArgs) -> Result<()> {
+    let team_key = config.resolve_team(args.team.as_deref());
 
     let variables = team_key.map(|key| {
         json!({
@@ -77,6 +121,31 @@ pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) 
             )
         },
     );
+
+    Ok(())
+}
+
+pub async fn show(client: &LinearClient, id: &str) -> Result<()> {
+    let variables = json!({ "id": id });
+    let response: CycleResponse = client.query(GET_CYCLE_QUERY, Some(variables)).await?;
+
+    let cycle = response
+        .cycle
+        .ok_or_else(|| LinearError::CycleNotFound(id.to_string()))?;
+
+    output::print_item(&cycle, |cycle| {
+        use colored::Colorize;
+
+        let default_name = format!("Cycle {}", cycle.number);
+        let name = cycle.name.as_deref().unwrap_or(&default_name);
+        println!("{}", name.bold());
+        println!();
+
+        println!("Number: {}", cycle.number);
+        println!("Team:   {} ({})", cycle.team.name, cycle.team.key);
+        println!("Starts: {}", format_date_only(&cycle.starts_at));
+        println!("Ends:   {}", format_date_only(&cycle.ends_at));
+    });
 
     Ok(())
 }

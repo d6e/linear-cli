@@ -13,7 +13,7 @@ use std::io;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
-use cli::{Cli, Commands, IssueCommands};
+use cli::{Cli, Commands, CycleCommands, IssueCommands};
 use client::LinearClient;
 use config::Config;
 use error::Result;
@@ -65,9 +65,17 @@ async fn run() -> Result<()> {
                 Commands::Projects { team } => {
                     commands::projects::list(&client, &config, team).await?;
                 }
-                Commands::Cycles { team } => {
-                    commands::cycles::list(&client, &config, team).await?;
+                Commands::Cycles(args) => {
+                    commands::cycles::list(&client, &config, args).await?;
                 }
+                Commands::Cycle { action } => match action {
+                    CycleCommands::List(args) => {
+                        commands::cycles::list(&client, &config, args).await?;
+                    }
+                    CycleCommands::Show { id } => {
+                        commands::cycles::show(&client, &id).await?;
+                    }
+                },
                 Commands::Issues(args) => {
                     commands::issues::list(&client, &config, args).await?;
                 }

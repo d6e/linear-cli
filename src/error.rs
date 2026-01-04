@@ -46,6 +46,9 @@ pub enum LinearError {
     #[error("Issue not found: {0}")]
     IssueNotFound(String),
 
+    #[error("Cycle not found: {0}")]
+    CycleNotFound(String),
+
     #[error("Team not found: {0}")]
     TeamNotFound(String),
 

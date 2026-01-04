@@ -97,15 +97,20 @@ pub enum Commands {
         #[arg(long)]
         team: Option<String>,
     },
-    /// List cycles/sprints
+    /// Manage cycles/sprints
+    #[command(after_help = "EXAMPLES:
+    linear cycle list
+    linear cycle list --team ENG
+    linear cycle show abc123")]
+    Cycle {
+        #[command(subcommand)]
+        action: CycleCommands,
+    },
+    /// List cycles (alias for 'cycle list')
     #[command(after_help = "EXAMPLES:
     linear cycles
     linear cycles --team ENG")]
-    Cycles {
-        /// Filter by team key (e.g., ENG)
-        #[arg(long)]
-        team: Option<String>,
-    },
+    Cycles(CycleListArgs),
     /// List labels
     #[command(
         alias = "l",
@@ -206,6 +211,35 @@ pub enum IssueCommands {
     #[command(after_help = "EXAMPLES:
     linear issue comment ENG-123 \"This is a comment\"")]
     Comment(CommentArgs),
+}
+
+#[derive(Subcommand)]
+pub enum CycleCommands {
+    /// List cycles
+    #[command(
+        alias = "ls",
+        after_help = "EXAMPLES:
+    linear cycle list
+    linear cycle list --team ENG"
+    )]
+    List(CycleListArgs),
+    /// Show cycle details
+    #[command(
+        alias = "s",
+        after_help = "EXAMPLES:
+    linear cycle show abc123-uuid"
+    )]
+    Show {
+        /// Cycle UUID
+        id: String,
+    },
+}
+
+#[derive(Args, Clone)]
+pub struct CycleListArgs {
+    /// Filter by team key (e.g., ENG)
+    #[arg(long)]
+    pub team: Option<String>,
 }
 
 #[derive(Args, Clone)]
