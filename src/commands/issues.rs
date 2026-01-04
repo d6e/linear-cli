@@ -328,7 +328,7 @@ pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -
     Ok(())
 }
 
-pub async fn show(client: &LinearClient, id: &str) -> Result<()> {
+pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
     let variables = json!({ "id": id });
     let response: IssueResponse = client.query(GET_ISSUE_QUERY, Some(variables)).await?;
 

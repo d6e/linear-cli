@@ -125,7 +125,7 @@ pub async fn list(client: &LinearClient, config: &Config, args: CycleListArgs) -
     Ok(())
 }
 
-pub async fn show(client: &LinearClient, id: &str) -> Result<()> {
+pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
     let variables = json!({ "id": id });
     let response: CycleResponse = client.query(GET_CYCLE_QUERY, Some(variables)).await?;
 

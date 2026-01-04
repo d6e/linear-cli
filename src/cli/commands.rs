@@ -16,7 +16,7 @@ pub enum OutputFormat {
 #[command(about = "A CLI for Linear issue tracking", version)]
 #[command(after_help = "EXAMPLES:
     linear issues --mine              List your assigned issues
-    linear issue show ENG-123         Show issue details
+    linear issue view ENG-123         View issue details
     linear issue create -t \"Title\"    Create a new issue
     linear issue close ENG-123        Close an issue
     linear issue comment ENG-123 \"Note\"  Add a comment")]
@@ -59,7 +59,7 @@ pub enum Commands {
         alias = "i",
         after_help = "EXAMPLES:
     linear issue list --mine --limit 10
-    linear issue show ENG-123
+    linear issue view ENG-123
     linear issue create -t \"Bug fix\" -d \"Description\" --priority 2
     linear issue update ENG-123 --status \"In Progress\"
     linear issue close ENG-123"
@@ -101,7 +101,7 @@ pub enum Commands {
     #[command(after_help = "EXAMPLES:
     linear cycle list
     linear cycle list --team ENG
-    linear cycle show abc123")]
+    linear cycle view abc123")]
     Cycle {
         #[command(subcommand)]
         action: CycleCommands,
@@ -148,14 +148,14 @@ pub enum IssueCommands {
     linear issue list --team ENG --status \"In Progress\""
     )]
     List(IssueListArgs),
-    /// Show issue details
+    /// View issue details
     #[command(
-        alias = "s",
+        alias = "v",
         after_help = "EXAMPLES:
-    linear issue show ENG-123
-    linear issue show abc123-uuid-here"
+    linear issue view ENG-123
+    linear issue view abc123-uuid-here"
     )]
-    Show {
+    View {
         /// Issue identifier (e.g., ENG-123) or UUID
         id: String,
     },
@@ -223,13 +223,13 @@ pub enum CycleCommands {
     linear cycle list --team ENG"
     )]
     List(CycleListArgs),
-    /// Show cycle details
+    /// View cycle details
     #[command(
-        alias = "s",
+        alias = "v",
         after_help = "EXAMPLES:
-    linear cycle show abc123-uuid"
+    linear cycle view abc123-uuid"
     )]
-    Show {
+    View {
         /// Cycle UUID
         id: String,
     },

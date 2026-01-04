@@ -72,8 +72,8 @@ async fn run() -> Result<()> {
                     CycleCommands::List(args) => {
                         commands::cycles::list(&client, &config, args).await?;
                     }
-                    CycleCommands::Show { id } => {
-                        commands::cycles::show(&client, &id).await?;
+                    CycleCommands::View { id } => {
+                        commands::cycles::view(&client, &id).await?;
                     }
                 },
                 Commands::Issues(args) => {
@@ -86,8 +86,8 @@ async fn run() -> Result<()> {
                     IssueCommands::List(args) => {
                         commands::issues::list(&client, &config, args).await?;
                     }
-                    IssueCommands::Show { id } => {
-                        commands::issues::show(&client, &id).await?;
+                    IssueCommands::View { id } => {
+                        commands::issues::view(&client, &id).await?;
                     }
                     IssueCommands::Create(args) => {
                         commands::issues::create(&client, &config, args).await?;
