@@ -266,6 +266,14 @@ pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -
         );
     }
 
+    // Cycle filter
+    if let Some(cycle) = &args.cycle {
+        filter.insert(
+            "cycle".to_string(),
+            json!({ "name": { "containsIgnoreCase": cycle } }),
+        );
+    }
+
     // Mine filter
     if args.mine {
         let viewer: ViewerResponse = client.query(GET_VIEWER_QUERY, None).await?;
