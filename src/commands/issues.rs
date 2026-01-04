@@ -234,7 +234,6 @@ struct WorkflowStatesResponse {
     workflow_states: Connection<WorkflowStateNode>,
 }
 
-
 pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -> Result<()> {
     let mut filter = serde_json::Map::new();
 
@@ -308,11 +307,7 @@ pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -
         &all_issues,
         |issue| IssueRow::from(issue),
         |issue| {
-            let status = issue
-                .state
-                .as_ref()
-                .map(|s| s.name.as_str())
-                .unwrap_or("-");
+            let status = issue.state.as_ref().map(|s| s.name.as_str()).unwrap_or("-");
             format!(
                 "{} | {} | {}",
                 issue.identifier,

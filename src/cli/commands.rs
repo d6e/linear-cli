@@ -55,31 +55,43 @@ impl Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Manage issues
-    #[command(alias = "i", after_help = "EXAMPLES:
+    #[command(
+        alias = "i",
+        after_help = "EXAMPLES:
     linear issue list --mine --limit 10
     linear issue show ENG-123
     linear issue create -t \"Bug fix\" -d \"Description\" --priority 2
     linear issue update ENG-123 --status \"In Progress\"
-    linear issue close ENG-123")]
+    linear issue close ENG-123"
+    )]
     Issue {
         #[command(subcommand)]
         action: IssueCommands,
     },
     /// List issues (alias for 'issue list')
-    #[command(alias = "is", after_help = "EXAMPLES:
+    #[command(
+        alias = "is",
+        after_help = "EXAMPLES:
     linear issues --mine
     linear issues --team ENG --status \"In Progress\"
-    linear issues --project \"Backend\" --limit 50")]
+    linear issues --project \"Backend\" --limit 50"
+    )]
     Issues(IssueListArgs),
     /// List teams
-    #[command(alias = "t", after_help = "EXAMPLES:
+    #[command(
+        alias = "t",
+        after_help = "EXAMPLES:
     linear teams
-    linear teams --format json")]
+    linear teams --format json"
+    )]
     Teams,
     /// List projects
-    #[command(alias = "p", after_help = "EXAMPLES:
+    #[command(
+        alias = "p",
+        after_help = "EXAMPLES:
     linear projects
-    linear projects --team ENG")]
+    linear projects --team ENG"
+    )]
     Projects {
         /// Filter by team key (e.g., ENG)
         #[arg(long)]
@@ -95,9 +107,12 @@ pub enum Commands {
         team: Option<String>,
     },
     /// List labels
-    #[command(alias = "l", after_help = "EXAMPLES:
+    #[command(
+        alias = "l",
+        after_help = "EXAMPLES:
     linear labels
-    linear labels --team ENG")]
+    linear labels --team ENG"
+    )]
     Labels {
         /// Filter by team key (e.g., ENG)
         #[arg(long)]
@@ -121,28 +136,40 @@ pub enum Commands {
 #[derive(Subcommand)]
 pub enum IssueCommands {
     /// List issues
-    #[command(alias = "ls", after_help = "EXAMPLES:
+    #[command(
+        alias = "ls",
+        after_help = "EXAMPLES:
     linear issue list --mine
-    linear issue list --team ENG --status \"In Progress\"")]
+    linear issue list --team ENG --status \"In Progress\""
+    )]
     List(IssueListArgs),
     /// Show issue details
-    #[command(alias = "s", after_help = "EXAMPLES:
+    #[command(
+        alias = "s",
+        after_help = "EXAMPLES:
     linear issue show ENG-123
-    linear issue show abc123-uuid-here")]
+    linear issue show abc123-uuid-here"
+    )]
     Show {
         /// Issue identifier (e.g., ENG-123) or UUID
         id: String,
     },
     /// Create a new issue
-    #[command(alias = "c", after_help = "EXAMPLES:
+    #[command(
+        alias = "c",
+        after_help = "EXAMPLES:
     linear issue create -t \"Fix login bug\"
-    linear issue create -t \"New feature\" -d \"Description\" --priority 2")]
+    linear issue create -t \"New feature\" -d \"Description\" --priority 2"
+    )]
     Create(IssueCreateArgs),
     /// Update an existing issue
-    #[command(alias = "u", after_help = "EXAMPLES:
+    #[command(
+        alias = "u",
+        after_help = "EXAMPLES:
     linear issue update ENG-123 --status \"Done\"
     linear issue update ENG-123 --assignee me
-    linear issue update ENG-123 --priority 2")]
+    linear issue update ENG-123 --priority 2"
+    )]
     Update(IssueUpdateArgs),
     /// Close an issue (set status to Done/Completed)
     #[command(after_help = "EXAMPLES:
@@ -202,6 +229,10 @@ pub struct IssueListArgs {
     /// Filter by label name
     #[arg(long)]
     pub label: Option<String>,
+
+    /// Filter by cycle name
+    #[arg(long)]
+    pub cycle: Option<String>,
 
     /// Maximum number of issues to show (default: 25, max: 250)
     #[arg(long, short, default_value = "25")]

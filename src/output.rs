@@ -61,7 +61,7 @@ where
             }
         }
         OutputFormat::Table => {
-            let rows: Vec<R> = items.iter().map(|item| to_row(item)).collect();
+            let rows: Vec<R> = items.iter().map(to_row).collect();
             let table = Table::new(rows).with(Style::rounded()).to_string();
             println!("{table}");
         }

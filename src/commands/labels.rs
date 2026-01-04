@@ -80,11 +80,7 @@ pub async fn list(client: &LinearClient, config: &Config, team: Option<String>) 
         return Ok(());
     }
 
-    output::print_table(
-        &labels,
-        LabelRow::from_label,
-        |label| label.name.clone(),
-    );
+    output::print_table(&labels, LabelRow::from_label, |label| label.name.clone());
 
     Ok(())
 }
