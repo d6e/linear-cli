@@ -54,8 +54,8 @@ linear issues --mine
 linear issues --team ENG --status "In Progress"
 linear issues --project Backend --limit 50
 
-# Show issue details
-linear issue show ENG-123
+# View issue details
+linear issue view ENG-123
 
 # Create issue
 linear issue create -t "Fix login bug" --team ENG
