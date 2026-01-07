@@ -86,8 +86,11 @@ async fn run() -> Result<()> {
                     IssueCommands::List(args) => {
                         commands::issues::list(&client, &config, args).await?;
                     }
-                    IssueCommands::View { id } => {
-                        commands::issues::view(&client, &id).await?;
+                    IssueCommands::View(args) => {
+                        commands::issues::view(&client, args).await?;
+                    }
+                    IssueCommands::Download(args) => {
+                        commands::issues::download(&client, args).await?;
                     }
                     IssueCommands::Create(args) => {
                         commands::issues::create(&client, &config, args).await?;

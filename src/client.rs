@@ -72,4 +72,9 @@ impl LinearClient {
 
         gql_response.data.ok_or(LinearError::EmptyResponse)
     }
+
+    /// Get the API key for authenticated downloads
+    pub fn api_key(&self) -> &str {
+        &self.api_key
+    }
 }

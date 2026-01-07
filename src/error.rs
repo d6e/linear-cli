@@ -70,6 +70,15 @@ pub enum LinearError {
 
     #[error("File upload failed (status {status}): {message}")]
     UploadFailed { status: u16, message: String },
+
+    #[error("Image download failed for {url} (status {status})")]
+    ImageDownloadFailed { url: String, status: u16 },
+
+    #[error("Output directory not found: {0}")]
+    OutputDirNotFound(PathBuf),
+
+    #[error("Image index {index} out of bounds (issue has {total} images)")]
+    ImageIndexOutOfBounds { index: usize, total: usize },
 }
 
 pub type Result<T> = std::result::Result<T, LinearError>;

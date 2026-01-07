@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 
@@ -153,12 +155,17 @@ pub enum IssueCommands {
         alias = "v",
         after_help = "EXAMPLES:
     linear issue view ENG-123
-    linear issue view abc123-uuid-here"
+    linear issue view ENG-123 --fetch-images --output ./images/"
     )]
-    View {
-        /// Issue identifier (e.g., ENG-123) or UUID
-        id: String,
-    },
+    View(IssueViewArgs),
+    /// Download images from an issue's description
+    #[command(
+        alias = "dl",
+        after_help = "EXAMPLES:
+    linear issue download ENG-123 --output ./images/
+    linear issue download ENG-123 --output ./images/ --index 1"
+    )]
+    Download(DownloadImagesArgs),
     /// Create a new issue
     #[command(
         alias = "c",
@@ -359,4 +366,32 @@ pub struct CommentArgs {
 
     /// Comment body (markdown supported)
     pub body: String,
+}
+
+#[derive(Args)]
+pub struct IssueViewArgs {
+    /// Issue identifier (e.g., ENG-123) or UUID
+    pub id: String,
+
+    /// Download images from the issue description
+    #[arg(long)]
+    pub fetch_images: bool,
+
+    /// Output directory for downloaded images (required with --fetch-images)
+    #[arg(long, requires = "fetch_images")]
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct DownloadImagesArgs {
+    /// Issue identifier (e.g., ENG-123) or UUID
+    pub id: String,
+
+    /// Output directory for downloaded images
+    #[arg(long)]
+    pub output: PathBuf,
+
+    /// Download only image at specific index (1-based)
+    #[arg(long)]
+    pub index: Option<usize>,
 }

@@ -3,8 +3,9 @@ use serde_json::json;
 use tabled::Tabled;
 
 use crate::cache::{Cache, CachedTeam};
-use crate::cli::{IssueCreateArgs, IssueListArgs, IssueUpdateArgs};
+use crate::cli::{DownloadImagesArgs, IssueCreateArgs, IssueListArgs, IssueUpdateArgs, IssueViewArgs};
 use crate::client::LinearClient;
+use crate::commands::images::{download_images, DownloadResult};
 use crate::config::Config;
 use crate::error::{LinearError, Result};
 use crate::output::{self, format_date, is_json_output, status_colored, truncate};
@@ -328,13 +329,33 @@ pub async fn list(client: &LinearClient, config: &Config, args: IssueListArgs) -
     Ok(())
 }
 
-pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
-    let variables = json!({ "id": id });
+pub async fn view(client: &LinearClient, args: IssueViewArgs) -> Result<()> {
+    let variables = json!({ "id": args.id });
     let response: IssueResponse = client.query(GET_ISSUE_QUERY, Some(variables)).await?;
 
     let issue = response
         .issue
-        .ok_or_else(|| LinearError::IssueNotFound(id.to_string()))?;
+        .ok_or_else(|| LinearError::IssueNotFound(args.id.clone()))?;
+
+    // Handle image fetching if requested
+    if args.fetch_images {
+        if let Some(output_dir) = &args.output {
+            if let Some(ref description) = issue.description {
+                let results = download_images(
+                    client.api_key(),
+                    description,
+                    &issue.identifier,
+                    output_dir,
+                    None,
+                )
+                .await?;
+
+                print_download_results(&results);
+            } else {
+                output::print_message("Issue has no description");
+            }
+        }
+    }
 
     output::print_item(&issue, |issue| {
         use colored::Colorize;
@@ -382,6 +403,71 @@ pub async fn view(client: &LinearClient, id: &str) -> Result<()> {
     });
 
     Ok(())
+}
+
+/// Download images from an issue's description
+pub async fn download(client: &LinearClient, args: DownloadImagesArgs) -> Result<()> {
+    let variables = json!({ "id": args.id });
+    let response: IssueResponse = client.query(GET_ISSUE_QUERY, Some(variables)).await?;
+
+    let issue = response
+        .issue
+        .ok_or_else(|| LinearError::IssueNotFound(args.id.clone()))?;
+
+    let description = issue.description.as_deref().unwrap_or("");
+
+    if description.is_empty() {
+        output::print_message(&format!("Issue {} has no description", issue.identifier));
+        return Ok(());
+    }
+
+    let results = download_images(
+        client.api_key(),
+        description,
+        &issue.identifier,
+        &args.output,
+        args.index,
+    )
+    .await?;
+
+    if results.is_empty() {
+        output::print_message(&format!(
+            "No images found in {} description",
+            issue.identifier
+        ));
+        return Ok(());
+    }
+
+    print_download_results(&results);
+
+    Ok(())
+}
+
+fn print_download_results(results: &[DownloadResult]) {
+    let success_count = results.iter().filter(|r| r.is_success()).count();
+    let fail_count = results.len() - success_count;
+
+    for result in results {
+        match result {
+            DownloadResult::Success { index, path, .. } => {
+                output::print_message(&format!("Downloaded image {} to {}", index, path.display()));
+            }
+            DownloadResult::Failed { index, url, error } => {
+                eprintln!("Failed to download image {} ({}): {}", index, url, error);
+            }
+        }
+    }
+
+    if fail_count > 0 {
+        output::print_message(&format!(
+            "Downloaded {}/{} images ({} failed)",
+            success_count,
+            results.len(),
+            fail_count
+        ));
+    } else if success_count > 1 {
+        output::print_message(&format!("Downloaded {} images", success_count));
+    }
 }
 
 pub async fn create(client: &LinearClient, config: &Config, args: IssueCreateArgs) -> Result<()> {
