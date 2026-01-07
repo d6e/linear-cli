@@ -172,7 +172,7 @@ query GetTeam($key: String!) {
 "#;
 
 const GET_STATES_QUERY: &str = r#"
-query GetStates($teamId: String!) {
+query GetStates($teamId: ID!) {
     workflowStates(filter: { team: { id: { eq: $teamId } } }) {
         nodes {
             id
