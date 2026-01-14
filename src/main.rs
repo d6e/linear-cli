@@ -116,6 +116,21 @@ async fn run() -> Result<()> {
                     IssueCommands::Comment(args) => {
                         commands::comments::add(&client, args).await?;
                     }
+                    IssueCommands::Relations { id } => {
+                        commands::relations::list(&client, &id).await?;
+                    }
+                    IssueCommands::Relate(args) => {
+                        commands::relations::relate(&client, args).await?;
+                    }
+                    IssueCommands::Unrelate { source, target } => {
+                        commands::relations::unrelate(&client, &source, &target).await?;
+                    }
+                    IssueCommands::Parent { id, parent_id } => {
+                        commands::relations::set_parent(&client, &id, &parent_id).await?;
+                    }
+                    IssueCommands::Unparent { id } => {
+                        commands::relations::remove_parent(&client, &id).await?;
+                    }
                 },
                 Commands::Completions { .. } | Commands::Init => {
                     // Already handled above

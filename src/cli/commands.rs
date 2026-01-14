@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 
-use crate::types::Priority;
+use crate::types::{IssueRelationType, Priority};
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum OutputFormat {
@@ -218,6 +218,44 @@ pub enum IssueCommands {
     #[command(after_help = "EXAMPLES:
     linear issue comment ENG-123 \"This is a comment\"")]
     Comment(CommentArgs),
+    /// List issue relations (blocks, blocked by, duplicates, related, parent, children)
+    #[command(after_help = "EXAMPLES:
+    linear issue relations ENG-123")]
+    Relations {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+    },
+    /// Create a relation between two issues
+    #[command(after_help = "EXAMPLES:
+    linear issue relate ENG-123 blocks ENG-456
+    linear issue relate ENG-123 duplicate ENG-456
+    linear issue relate ENG-123 related ENG-456")]
+    Relate(RelateArgs),
+    /// Remove a relation between two issues
+    #[command(after_help = "EXAMPLES:
+    linear issue unrelate ENG-123 ENG-456")]
+    Unrelate {
+        /// Source issue identifier
+        source: String,
+        /// Target issue identifier
+        target: String,
+    },
+    /// Set the parent of an issue (creates sub-issue)
+    #[command(after_help = "EXAMPLES:
+    linear issue parent ENG-123 ENG-100")]
+    Parent {
+        /// Issue to modify
+        id: String,
+        /// Parent issue identifier
+        parent_id: String,
+    },
+    /// Remove the parent from an issue
+    #[command(after_help = "EXAMPLES:
+    linear issue unparent ENG-123")]
+    Unparent {
+        /// Issue identifier
+        id: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -394,4 +432,17 @@ pub struct DownloadImagesArgs {
     /// Download only image at specific index (1-based)
     #[arg(long)]
     pub index: Option<usize>,
+}
+
+#[derive(Args)]
+pub struct RelateArgs {
+    /// Source issue identifier (e.g., ENG-123)
+    pub source: String,
+
+    /// Relation type
+    #[arg(value_enum)]
+    pub relation: IssueRelationType,
+
+    /// Target issue identifier (e.g., ENG-456)
+    pub target: String,
 }

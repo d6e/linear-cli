@@ -79,6 +79,9 @@ pub enum LinearError {
 
     #[error("Image index {index} out of bounds (issue has {total} images)")]
     ImageIndexOutOfBounds { index: usize, total: usize },
+
+    #[error("No relation found between {0} and {1}")]
+    RelationNotFound(String, String),
 }
 
 pub type Result<T> = std::result::Result<T, LinearError>;

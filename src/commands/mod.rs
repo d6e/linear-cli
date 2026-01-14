@@ -6,4 +6,5 @@ pub mod init;
 pub mod issues;
 pub mod labels;
 pub mod projects;
+pub mod relations;
 pub mod teams;
