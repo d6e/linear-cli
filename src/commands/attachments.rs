@@ -408,9 +408,9 @@ async fn download_attachment(
 }
 
 pub async fn download(client: &LinearClient, args: DownloadAttachmentsArgs) -> Result<()> {
-    // Ensure output directory exists
+    // Create output directory if it doesn't exist
     if !args.output.exists() {
-        return Err(LinearError::OutputDirNotFound(args.output.clone()));
+        std::fs::create_dir_all(&args.output)?;
     }
 
     // Fetch attachments
