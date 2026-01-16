@@ -80,6 +80,15 @@ pub enum LinearError {
     #[error("Image index {index} out of bounds (issue has {total} images)")]
     ImageIndexOutOfBounds { index: usize, total: usize },
 
+    #[error("Attachment index {index} out of bounds (issue has {total} attachments)")]
+    AttachmentIndexOutOfBounds { index: usize, total: usize },
+
+    #[error("Attachment download failed for {url} (status {status})")]
+    AttachmentDownloadFailed { url: String, status: u16 },
+
+    #[error("No attachments found for issue {0}")]
+    NoAttachments(String),
+
     #[error("No relation found between {0} and {1}")]
     RelationNotFound(String, String),
 }

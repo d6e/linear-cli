@@ -207,6 +207,14 @@ pub enum IssueCommands {
     linear issue upload ENG-123 ./screenshot.png
     linear issue upload ENG-123 ./doc.pdf -t \"Documentation\"")]
     Upload(UploadFileArgs),
+    /// Download attachments from an issue
+    #[command(
+        alias = "dla",
+        after_help = "EXAMPLES:
+    linear issue download-attachments ENG-123 --output ./downloads/
+    linear issue download-attachments ENG-123 --output ./downloads/ --index 1"
+    )]
+    DownloadAttachments(DownloadAttachmentsArgs),
     /// List comments on an issue
     #[command(after_help = "EXAMPLES:
     linear issue comments ENG-123")]
@@ -404,6 +412,20 @@ pub struct CommentArgs {
 
     /// Comment body (markdown supported)
     pub body: String,
+}
+
+#[derive(Args)]
+pub struct DownloadAttachmentsArgs {
+    /// Issue identifier (e.g., ENG-123) or UUID
+    pub id: String,
+
+    /// Output directory for downloaded attachments
+    #[arg(long)]
+    pub output: PathBuf,
+
+    /// Download only attachment at specific index (1-based)
+    #[arg(long)]
+    pub index: Option<usize>,
 }
 
 #[derive(Args)]

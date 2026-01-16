@@ -110,6 +110,9 @@ async fn run() -> Result<()> {
                     IssueCommands::Upload(args) => {
                         commands::attachments::upload_file(&client, args).await?;
                     }
+                    IssueCommands::DownloadAttachments(args) => {
+                        commands::attachments::download(&client, args).await?;
+                    }
                     IssueCommands::Comments { id } => {
                         commands::comments::list(&client, &id).await?;
                     }

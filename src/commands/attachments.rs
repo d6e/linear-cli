@@ -1,11 +1,12 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use reqwest::Client;
 use serde::Deserialize;
 use serde_json::json;
 use tabled::Tabled;
 use url::Url;
 
-use crate::cli::{AttachUrlArgs, UploadFileArgs};
+use crate::cli::{AttachUrlArgs, DownloadAttachmentsArgs, UploadFileArgs};
 use crate::client::LinearClient;
 use crate::error::{LinearError, Result};
 use crate::output::{self, format_date_only, truncate};
@@ -304,4 +305,162 @@ fn guess_content_type(filename: &str) -> String {
         _ => "application/octet-stream",
     }
     .to_string()
+}
+
+/// Determine if a URL is a Linear-hosted asset (needs auth)
+fn is_linear_url(url: &str) -> bool {
+    url.contains("linear.app") || url.contains("uploads.linear.app")
+}
+
+/// Generate a filename for a downloaded attachment
+fn generate_attachment_filename(issue_id: &str, attachment: &Attachment, index: usize) -> String {
+    let title = &attachment.title;
+
+    // Try to extract extension from URL if present
+    let extension = attachment
+        .url
+        .as_ref()
+        .and_then(|url_str| Url::parse(url_str).ok())
+        .and_then(|url| {
+            url.path_segments()
+                .and_then(|mut segs| segs.next_back())
+                .and_then(|filename| {
+                    let parts: Vec<&str> = filename.rsplitn(2, '.').collect();
+                    if parts.len() == 2 {
+                        Some(parts[0].to_string())
+                    } else {
+                        None
+                    }
+                })
+        });
+
+    // Check if title already has an extension
+    let title_has_ext = title
+        .rsplit('.')
+        .next()
+        .map(|ext| ext.len() <= 5 && ext.chars().all(|c| c.is_alphanumeric()))
+        .unwrap_or(false);
+
+    // Sanitize title for use as filename
+    let sanitized_title: String = title
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    if title_has_ext {
+        format!("{}__{}", issue_id, sanitized_title)
+    } else if let Some(ext) = extension {
+        format!("{}__{}_{}.{}", issue_id, sanitized_title, index, ext)
+    } else {
+        format!("{}__{}_{}", issue_id, sanitized_title, index)
+    }
+}
+
+/// Download a single attachment
+async fn download_attachment(
+    http: &Client,
+    api_key: &str,
+    attachment: &Attachment,
+    output_dir: &Path,
+    issue_id: &str,
+    index: usize,
+) -> Result<PathBuf> {
+    let url_str = attachment
+        .url
+        .as_ref()
+        .ok_or_else(|| LinearError::AttachmentDownloadFailed {
+            url: "(no url)".to_string(),
+            status: 0,
+        })?;
+
+    let url = Url::parse(url_str).map_err(|_| LinearError::InvalidUrl(url_str.clone()))?;
+
+    let mut request = http.get(url.clone());
+
+    // Add auth header for Linear-hosted attachments
+    if is_linear_url(url_str) {
+        request = request.header("Authorization", api_key);
+    }
+
+    let response = request.send().await?;
+
+    if !response.status().is_success() {
+        return Err(LinearError::AttachmentDownloadFailed {
+            url: url_str.clone(),
+            status: response.status().as_u16(),
+        });
+    }
+
+    let bytes = response.bytes().await?;
+
+    let filename = generate_attachment_filename(issue_id, attachment, index);
+    let file_path = output_dir.join(&filename);
+
+    std::fs::write(&file_path, &bytes)?;
+
+    Ok(file_path)
+}
+
+pub async fn download(client: &LinearClient, args: DownloadAttachmentsArgs) -> Result<()> {
+    // Ensure output directory exists
+    if !args.output.exists() {
+        return Err(LinearError::OutputDirNotFound(args.output.clone()));
+    }
+
+    // Fetch attachments
+    let variables = json!({ "issueId": args.id });
+    let response: AttachmentsResponse = client
+        .query(LIST_ATTACHMENTS_QUERY, Some(variables))
+        .await?;
+
+    let attachments = response
+        .issue
+        .ok_or_else(|| LinearError::IssueNotFound(args.id.clone()))?
+        .attachments
+        .nodes;
+
+    if attachments.is_empty() {
+        return Err(LinearError::NoAttachments(args.id.clone()));
+    }
+
+    let total = attachments.len();
+
+    // Filter to specific index if provided (1-based indexing)
+    let attachments_to_download: Vec<_> = if let Some(idx) = args.index {
+        if idx == 0 || idx > total {
+            return Err(LinearError::AttachmentIndexOutOfBounds { index: idx, total });
+        }
+        vec![(idx, &attachments[idx - 1])]
+    } else {
+        attachments.iter().enumerate().map(|(i, a)| (i + 1, a)).collect()
+    };
+
+    let http = Client::new();
+    let api_key = client.api_key();
+
+    for (index, attachment) in attachments_to_download {
+        match download_attachment(&http, api_key, attachment, &args.output, &args.id, index).await {
+            Ok(path) => {
+                output::print_message(&format!(
+                    "Downloaded attachment {} to {}",
+                    index,
+                    path.display()
+                ));
+            }
+            Err(e) => {
+                eprintln!(
+                    "Failed to download attachment {} ({}): {}",
+                    index, attachment.title, e
+                );
+            }
+        }
+    }
+
+    Ok(())
 }
