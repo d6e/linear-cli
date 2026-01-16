@@ -98,7 +98,8 @@ struct CommentCreateResult {
     success: bool,
 }
 
-pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
+/// Fetch comments for an issue (returns the list for programmatic use)
+pub async fn fetch_comments(client: &LinearClient, issue_id: &str) -> Result<Vec<Comment>> {
     let variables = json!({ "issueId": issue_id });
     let response: CommentsResponse = client.query(LIST_COMMENTS_QUERY, Some(variables)).await?;
 
@@ -107,6 +108,12 @@ pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
         .ok_or_else(|| LinearError::IssueNotFound(issue_id.to_string()))?
         .comments
         .nodes;
+
+    Ok(comments)
+}
+
+pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
+    let comments = fetch_comments(client, issue_id).await?;
 
     if comments.is_empty() {
         output::print_message(&format!("No comments on {issue_id}"));

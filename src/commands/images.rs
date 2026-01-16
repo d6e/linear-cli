@@ -2,9 +2,14 @@ use std::path::{Path, PathBuf};
 
 use regex::Regex;
 use reqwest::Client;
+use serde::Deserialize;
+use serde_json::json;
 use url::Url;
 
+use crate::cli::DownloadImagesArgs;
+use crate::client::LinearClient;
 use crate::error::{LinearError, Result};
+use crate::output;
 
 /// Represents an image found in markdown content
 #[derive(Debug, Clone)]
@@ -181,6 +186,98 @@ pub async fn download_images(
     }
 
     Ok(results)
+}
+
+// GraphQL query for fetching issue
+const GET_ISSUE_QUERY: &str = r#"
+    query GetIssue($id: String!) {
+        issue(id: $id) {
+            id
+            identifier
+            description
+        }
+    }
+"#;
+
+#[derive(Deserialize)]
+struct IssueResponse {
+    issue: Option<IssueBasic>,
+}
+
+#[derive(Deserialize)]
+struct IssueBasic {
+    identifier: String,
+    description: Option<String>,
+}
+
+/// Command handler: Download images from an issue's description
+pub async fn download_images_command(client: &LinearClient, args: DownloadImagesArgs) -> Result<()> {
+    // Create output directory if it doesn't exist
+    if !args.output.exists() {
+        std::fs::create_dir_all(&args.output)?;
+    }
+
+    let variables = json!({ "id": args.id });
+    let response: IssueResponse = client.query(GET_ISSUE_QUERY, Some(variables)).await?;
+
+    let issue = response
+        .issue
+        .ok_or_else(|| LinearError::IssueNotFound(args.id.clone()))?;
+
+    let description = issue.description.as_deref().unwrap_or("");
+
+    if description.is_empty() {
+        output::print_message(&format!("Issue {} has no description", issue.identifier));
+        return Ok(());
+    }
+
+    let results = download_images(
+        client.api_key(),
+        description,
+        &issue.identifier,
+        &args.output,
+        args.index,
+    )
+    .await?;
+
+    if results.is_empty() {
+        output::print_message(&format!(
+            "No images found in {} description",
+            issue.identifier
+        ));
+        return Ok(());
+    }
+
+    print_download_results(&results);
+
+    Ok(())
+}
+
+pub fn print_download_results(results: &[DownloadResult]) {
+    let success_count = results.iter().filter(|r| r.is_success()).count();
+    let fail_count = results.len() - success_count;
+
+    for result in results {
+        match result {
+            DownloadResult::Success { index, path, .. } => {
+                output::print_message(&format!("Downloaded image {} to {}", index, path.display()));
+            }
+            DownloadResult::Failed { index, url, error } => {
+                eprintln!("Failed to download image {} ({}): {}", index, url, error);
+            }
+        }
+    }
+
+    if fail_count > 0 {
+        output::print_message(&format!(
+            "Downloaded {}/{} images ({} failed)",
+            success_count,
+            results.len(),
+            fail_count
+        ));
+    } else if success_count > 1 {
+        output::print_message(&format!("Downloaded {} images", success_count));
+    }
 }
 
 #[cfg(test)]

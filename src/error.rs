@@ -9,6 +9,9 @@ pub enum LinearError {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
+
     #[error("API error (status {status}): {message}")]
     ApiError { status: u16, message: String },
 

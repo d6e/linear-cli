@@ -13,7 +13,7 @@ use std::io;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
-use cli::{Cli, Commands, CycleCommands, IssueCommands};
+use cli::{Cli, Commands, CycleCommands, IssueCommands, ImageCommands, AttachmentCommands};
 use client::LinearClient;
 use config::Config;
 use error::Result;
@@ -90,8 +90,13 @@ async fn run() -> Result<()> {
                         commands::issues::view(&client, args).await?;
                     }
                     IssueCommands::Download(args) => {
-                        commands::issues::download(&client, args).await?;
+                        commands::issues::download_all(&client, args).await?;
                     }
+                    IssueCommands::Images { action } => match action {
+                        ImageCommands::Download(args) => {
+                            commands::images::download_images_command(&client, args).await?;
+                        }
+                    },
                     IssueCommands::Create(args) => {
                         commands::issues::create(&client, &config, args).await?;
                     }
@@ -101,18 +106,20 @@ async fn run() -> Result<()> {
                     IssueCommands::Close { id } => {
                         commands::issues::close(&client, &id).await?;
                     }
-                    IssueCommands::Attachments { id } => {
-                        commands::attachments::list(&client, &id).await?;
-                    }
-                    IssueCommands::Attach(args) => {
-                        commands::attachments::attach_url(&client, args).await?;
-                    }
-                    IssueCommands::Upload(args) => {
-                        commands::attachments::upload_file(&client, args).await?;
-                    }
-                    IssueCommands::DownloadAttachments(args) => {
-                        commands::attachments::download(&client, args).await?;
-                    }
+                    IssueCommands::Attachments { action } => match action {
+                        AttachmentCommands::List { id } => {
+                            commands::attachments::list(&client, &id).await?;
+                        }
+                        AttachmentCommands::Download(args) => {
+                            commands::attachments::download(&client, args).await?;
+                        }
+                        AttachmentCommands::Attach(args) => {
+                            commands::attachments::attach_url(&client, args).await?;
+                        }
+                        AttachmentCommands::Upload(args) => {
+                            commands::attachments::upload_file(&client, args).await?;
+                        }
+                    },
                     IssueCommands::Comments { id } => {
                         commands::comments::list(&client, &id).await?;
                     }

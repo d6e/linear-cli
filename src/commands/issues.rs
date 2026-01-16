@@ -3,9 +3,11 @@ use serde_json::json;
 use tabled::Tabled;
 
 use crate::cache::{Cache, CachedTeam};
-use crate::cli::{DownloadImagesArgs, IssueCreateArgs, IssueListArgs, IssueUpdateArgs, IssueViewArgs};
+use crate::cli::{DownloadAllArgs, IssueCreateArgs, IssueListArgs, IssueUpdateArgs, IssueViewArgs};
 use crate::client::LinearClient;
-use crate::commands::images::{download_images, DownloadResult};
+use crate::commands::attachments;
+use crate::commands::comments;
+use crate::commands::images::{download_images, print_download_results};
 use crate::config::Config;
 use crate::error::{LinearError, Result};
 use crate::output::{self, format_date, is_json_output, status_colored, truncate};
@@ -405,8 +407,18 @@ pub async fn view(client: &LinearClient, args: IssueViewArgs) -> Result<()> {
     Ok(())
 }
 
-/// Download images from an issue's description
-pub async fn download(client: &LinearClient, args: DownloadImagesArgs) -> Result<()> {
+/// Download everything from an issue (metadata, comments, images, attachments)
+pub async fn download_all(client: &LinearClient, args: DownloadAllArgs) -> Result<()> {
+    // Create output directory structure
+    let base_dir = &args.output;
+    let images_dir = base_dir.join("images");
+    let attachments_dir = base_dir.join("attachments");
+
+    std::fs::create_dir_all(base_dir)?;
+    std::fs::create_dir_all(&images_dir)?;
+    std::fs::create_dir_all(&attachments_dir)?;
+
+    // Fetch issue details
     let variables = json!({ "id": args.id });
     let response: IssueResponse = client.query(GET_ISSUE_QUERY, Some(variables)).await?;
 
@@ -414,60 +426,87 @@ pub async fn download(client: &LinearClient, args: DownloadImagesArgs) -> Result
         .issue
         .ok_or_else(|| LinearError::IssueNotFound(args.id.clone()))?;
 
-    let description = issue.description.as_deref().unwrap_or("");
+    output::print_message(&format!("Downloading issue {}...", issue.identifier));
 
-    if description.is_empty() {
-        output::print_message(&format!("Issue {} has no description", issue.identifier));
-        return Ok(());
-    }
+    // Save issue metadata as JSON
+    let issue_json = serde_json::to_string_pretty(&issue)?;
+    let issue_file = base_dir.join("issue.json");
+    std::fs::write(&issue_file, &issue_json)?;
+    output::print_message(&format!("Saved issue metadata to {}", issue_file.display()));
 
-    let results = download_images(
-        client.api_key(),
-        description,
-        &issue.identifier,
-        &args.output,
-        args.index,
-    )
-    .await?;
-
-    if results.is_empty() {
-        output::print_message(&format!(
-            "No images found in {} description",
-            issue.identifier
-        ));
-        return Ok(());
-    }
-
-    print_download_results(&results);
-
-    Ok(())
-}
-
-fn print_download_results(results: &[DownloadResult]) {
-    let success_count = results.iter().filter(|r| r.is_success()).count();
-    let fail_count = results.len() - success_count;
-
-    for result in results {
-        match result {
-            DownloadResult::Success { index, path, .. } => {
-                output::print_message(&format!("Downloaded image {} to {}", index, path.display()));
+    // Download comments
+    let comments_result = comments::fetch_comments(client, &args.id).await;
+    match comments_result {
+        Ok(comments_list) => {
+            if !comments_list.is_empty() {
+                let comments_json = serde_json::to_string_pretty(&comments_list)?;
+                let comments_file = base_dir.join("comments.json");
+                std::fs::write(&comments_file, &comments_json)?;
+                output::print_message(&format!(
+                    "Saved {} comments to {}",
+                    comments_list.len(),
+                    comments_file.display()
+                ));
             }
-            DownloadResult::Failed { index, url, error } => {
-                eprintln!("Failed to download image {} ({}): {}", index, url, error);
+        }
+        Err(e) => {
+            eprintln!("Failed to fetch comments: {}", e);
+        }
+    }
+
+    // Download images from description
+    let description = issue.description.as_deref().unwrap_or("");
+    if !description.is_empty() {
+        let image_results = download_images(
+            client.api_key(),
+            description,
+            &issue.identifier,
+            &images_dir,
+            None,
+        )
+        .await;
+
+        match image_results {
+            Ok(results) => {
+                let success_count = results.iter().filter(|r| r.is_success()).count();
+                if success_count > 0 {
+                    output::print_message(&format!(
+                        "Downloaded {} images to {}",
+                        success_count,
+                        images_dir.display()
+                    ));
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to download images: {}", e);
             }
         }
     }
 
-    if fail_count > 0 {
-        output::print_message(&format!(
-            "Downloaded {}/{} images ({} failed)",
-            success_count,
-            results.len(),
-            fail_count
-        ));
-    } else if success_count > 1 {
-        output::print_message(&format!("Downloaded {} images", success_count));
+    // Download attachments
+    let attachments_result =
+        attachments::download_to_dir(client, &args.id, &attachments_dir).await;
+    match attachments_result {
+        Ok(count) => {
+            if count > 0 {
+                output::print_message(&format!(
+                    "Downloaded {} attachments to {}",
+                    count,
+                    attachments_dir.display()
+                ));
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to download attachments: {}", e);
+        }
     }
+
+    output::print_message(&format!(
+        "Download complete: {}",
+        base_dir.display()
+    ));
+
+    Ok(())
 }
 
 pub async fn create(client: &LinearClient, config: &Config, args: IssueCreateArgs) -> Result<()> {

@@ -154,18 +154,24 @@ pub enum IssueCommands {
     #[command(
         alias = "v",
         after_help = "EXAMPLES:
-    linear issue view ENG-123
-    linear issue view ENG-123 --fetch-images --output ./images/"
+    linear issue view ENG-123"
     )]
     View(IssueViewArgs),
-    /// Download images from an issue's description
+    /// Download everything from an issue (metadata, comments, images, attachments)
     #[command(
         alias = "dl",
         after_help = "EXAMPLES:
-    linear issue download ENG-123 --output ./images/
-    linear issue download ENG-123 --output ./images/ --index 1"
+    linear issue download ENG-123 --output ./ENG-123/
+    linear issue download ENG-123 --output ./backup/"
     )]
-    Download(DownloadImagesArgs),
+    Download(DownloadAllArgs),
+    /// Manage images in issue descriptions
+    #[command(after_help = "EXAMPLES:
+    linear issue images download ENG-123 --output ./images/")]
+    Images {
+        #[command(subcommand)]
+        action: ImageCommands,
+    },
     /// Create a new issue
     #[command(
         alias = "c",
@@ -190,31 +196,14 @@ pub enum IssueCommands {
         /// Issue identifier (e.g., ENG-123) or UUID
         id: String,
     },
-    /// List attachments on an issue
+    /// Manage issue attachments
     #[command(after_help = "EXAMPLES:
-    linear issue attachments ENG-123")]
+    linear issue attachments list ENG-123
+    linear issue attachments download ENG-123 --output ./downloads/")]
     Attachments {
-        /// Issue identifier (e.g., ENG-123)
-        id: String,
+        #[command(subcommand)]
+        action: AttachmentCommands,
     },
-    /// Attach a URL to an issue
-    #[command(after_help = "EXAMPLES:
-    linear issue attach ENG-123 https://example.com
-    linear issue attach ENG-123 https://example.com -t \"Reference\"")]
-    Attach(AttachUrlArgs),
-    /// Upload a file and attach it to an issue
-    #[command(after_help = "EXAMPLES:
-    linear issue upload ENG-123 ./screenshot.png
-    linear issue upload ENG-123 ./doc.pdf -t \"Documentation\"")]
-    Upload(UploadFileArgs),
-    /// Download attachments from an issue
-    #[command(
-        alias = "dla",
-        after_help = "EXAMPLES:
-    linear issue download-attachments ENG-123 --output ./downloads/
-    linear issue download-attachments ENG-123 --output ./downloads/ --index 1"
-    )]
-    DownloadAttachments(DownloadAttachmentsArgs),
     /// List comments on an issue
     #[command(after_help = "EXAMPLES:
     linear issue comments ENG-123")]
@@ -264,6 +253,50 @@ pub enum IssueCommands {
         /// Issue identifier
         id: String,
     },
+}
+
+#[derive(Subcommand)]
+pub enum ImageCommands {
+    /// Download images from an issue's description
+    #[command(
+        alias = "dl",
+        after_help = "EXAMPLES:
+    linear issue images download ENG-123 --output ./images/
+    linear issue images download ENG-123 --output ./images/ --index 1"
+    )]
+    Download(DownloadImagesArgs),
+}
+
+#[derive(Subcommand)]
+pub enum AttachmentCommands {
+    /// List attachments on an issue
+    #[command(
+        alias = "ls",
+        after_help = "EXAMPLES:
+    linear issue attachments list ENG-123"
+    )]
+    List {
+        /// Issue identifier (e.g., ENG-123)
+        id: String,
+    },
+    /// Download attachments from an issue
+    #[command(
+        alias = "dl",
+        after_help = "EXAMPLES:
+    linear issue attachments download ENG-123 --output ./downloads/
+    linear issue attachments download ENG-123 --output ./downloads/ --index 1"
+    )]
+    Download(DownloadAttachmentsArgs),
+    /// Attach a URL to an issue
+    #[command(after_help = "EXAMPLES:
+    linear issue attachments attach ENG-123 https://example.com
+    linear issue attachments attach ENG-123 https://example.com -t \"Reference\"")]
+    Attach(AttachUrlArgs),
+    /// Upload a file and attach it to an issue
+    #[command(after_help = "EXAMPLES:
+    linear issue attachments upload ENG-123 ./screenshot.png
+    linear issue attachments upload ENG-123 ./doc.pdf -t \"Documentation\"")]
+    Upload(UploadFileArgs),
 }
 
 #[derive(Subcommand)]
@@ -454,6 +487,16 @@ pub struct DownloadImagesArgs {
     /// Download only image at specific index (1-based)
     #[arg(long)]
     pub index: Option<usize>,
+}
+
+#[derive(Args)]
+pub struct DownloadAllArgs {
+    /// Issue identifier (e.g., ENG-123) or UUID
+    pub id: String,
+
+    /// Output directory for downloaded content
+    #[arg(long)]
+    pub output: PathBuf,
 }
 
 #[derive(Args)]

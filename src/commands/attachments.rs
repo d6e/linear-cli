@@ -464,3 +464,36 @@ pub async fn download(client: &LinearClient, args: DownloadAttachmentsArgs) -> R
 
     Ok(())
 }
+
+/// Download all attachments to a directory (returns count of successful downloads)
+pub async fn download_to_dir(client: &LinearClient, issue_id: &str, output_dir: &Path) -> Result<usize> {
+    // Fetch attachments
+    let variables = json!({ "issueId": issue_id });
+    let response: AttachmentsResponse = client
+        .query(LIST_ATTACHMENTS_QUERY, Some(variables))
+        .await?;
+
+    let attachments = match response.issue {
+        Some(issue) => issue.attachments.nodes,
+        None => return Ok(0),
+    };
+
+    if attachments.is_empty() {
+        return Ok(0);
+    }
+
+    let http = Client::new();
+    let api_key = client.api_key();
+    let mut success_count = 0;
+
+    for (index, attachment) in attachments.iter().enumerate() {
+        if download_attachment(&http, api_key, attachment, output_dir, issue_id, index + 1)
+            .await
+            .is_ok()
+        {
+            success_count += 1;
+        }
+    }
+
+    Ok(success_count)
+}
