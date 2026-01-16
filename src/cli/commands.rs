@@ -153,6 +153,7 @@ pub enum IssueCommands {
     /// View issue details
     #[command(
         alias = "v",
+        visible_alias = "show",
         after_help = "EXAMPLES:
     linear issue view ENG-123"
     )]
