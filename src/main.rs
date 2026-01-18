@@ -13,7 +13,7 @@ use std::io;
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 
-use cli::{Cli, Commands, CycleCommands, IssueCommands, ImageCommands, AttachmentCommands};
+use cli::{AttachmentCommands, Cli, Commands, CycleCommands, ImageCommands, IssueCommands};
 use client::LinearClient;
 use config::Config;
 use error::Result;

@@ -438,7 +438,11 @@ pub async fn download(client: &LinearClient, args: DownloadAttachmentsArgs) -> R
         }
         vec![(idx, &attachments[idx - 1])]
     } else {
-        attachments.iter().enumerate().map(|(i, a)| (i + 1, a)).collect()
+        attachments
+            .iter()
+            .enumerate()
+            .map(|(i, a)| (i + 1, a))
+            .collect()
     };
 
     let http = Client::new();
@@ -466,7 +470,11 @@ pub async fn download(client: &LinearClient, args: DownloadAttachmentsArgs) -> R
 }
 
 /// Download all attachments to a directory (returns count of successful downloads)
-pub async fn download_to_dir(client: &LinearClient, issue_id: &str, output_dir: &Path) -> Result<usize> {
+pub async fn download_to_dir(
+    client: &LinearClient,
+    issue_id: &str,
+    output_dir: &Path,
+) -> Result<usize> {
     // Fetch attachments
     let variables = json!({ "issueId": issue_id });
     let response: AttachmentsResponse = client

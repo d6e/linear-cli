@@ -484,8 +484,7 @@ pub async fn download_all(client: &LinearClient, args: DownloadAllArgs) -> Resul
     }
 
     // Download attachments
-    let attachments_result =
-        attachments::download_to_dir(client, &args.id, &attachments_dir).await;
+    let attachments_result = attachments::download_to_dir(client, &args.id, &attachments_dir).await;
     match attachments_result {
         Ok(count) => {
             if count > 0 {
@@ -501,10 +500,7 @@ pub async fn download_all(client: &LinearClient, args: DownloadAllArgs) -> Resul
         }
     }
 
-    output::print_message(&format!(
-        "Download complete: {}",
-        base_dir.display()
-    ));
+    output::print_message(&format!("Download complete: {}", base_dir.display()));
 
     Ok(())
 }

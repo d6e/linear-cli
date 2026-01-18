@@ -243,13 +243,14 @@ pub async fn unrelate(client: &LinearClient, source: &str, target: &str) -> Resu
         .ok_or_else(|| LinearError::IssueNotFound(source.to_string()))?;
 
     // Find matching relation
-    let relation = issue.relations.nodes.iter().find(|r| {
-        r.related_issue.identifier == target || r.issue.identifier == target
-    });
+    let relation = issue
+        .relations
+        .nodes
+        .iter()
+        .find(|r| r.related_issue.identifier == target || r.issue.identifier == target);
 
-    let relation = relation.ok_or_else(|| {
-        LinearError::RelationNotFound(source.to_string(), target.to_string())
-    })?;
+    let relation = relation
+        .ok_or_else(|| LinearError::RelationNotFound(source.to_string(), target.to_string()))?;
 
     let delete_vars = json!({ "id": relation.id });
     let delete_response: DeleteRelationResponse = client
@@ -257,7 +258,10 @@ pub async fn unrelate(client: &LinearClient, source: &str, target: &str) -> Resu
         .await?;
 
     if delete_response.issue_relation_delete.success {
-        output::print_message(&format!("Removed relation between {} and {}", source, target));
+        output::print_message(&format!(
+            "Removed relation between {} and {}",
+            source, target
+        ));
     }
 
     Ok(())

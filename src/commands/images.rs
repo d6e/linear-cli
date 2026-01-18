@@ -27,8 +27,14 @@ pub fn parse_markdown_images(markdown: &str) -> Vec<MarkdownImage> {
     re.captures_iter(markdown)
         .enumerate()
         .map(|(idx, cap)| MarkdownImage {
-            alt_text: cap.get(1).map(|m| m.as_str().to_string()).unwrap_or_default(),
-            url: cap.get(2).map(|m| m.as_str().to_string()).unwrap_or_default(),
+            alt_text: cap
+                .get(1)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default(),
+            url: cap
+                .get(2)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default(),
             index: idx + 1, // 1-based indexing for user-facing
         })
         .collect()
@@ -211,7 +217,10 @@ struct IssueBasic {
 }
 
 /// Command handler: Download images from an issue's description
-pub async fn download_images_command(client: &LinearClient, args: DownloadImagesArgs) -> Result<()> {
+pub async fn download_images_command(
+    client: &LinearClient,
+    args: DownloadImagesArgs,
+) -> Result<()> {
     // Create output directory if it doesn't exist
     if !args.output.exists() {
         std::fs::create_dir_all(&args.output)?;
