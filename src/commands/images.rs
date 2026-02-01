@@ -19,6 +19,14 @@ pub struct MarkdownImage {
     pub index: usize,
 }
 
+/// Represents a link found in markdown content (not an image)
+#[derive(Debug, Clone)]
+pub struct MarkdownLink {
+    pub text: String,
+    pub url: String,
+    pub index: usize,
+}
+
 /// Parse markdown content and extract all image URLs
 /// Matches: ![alt text](url) and ![](url)
 pub fn parse_markdown_images(markdown: &str) -> Vec<MarkdownImage> {
@@ -36,6 +44,31 @@ pub fn parse_markdown_images(markdown: &str) -> Vec<MarkdownImage> {
                 .map(|m| m.as_str().to_string())
                 .unwrap_or_default(),
             index: idx + 1, // 1-based indexing for user-facing
+        })
+        .collect()
+}
+
+/// Parse markdown content and extract all link URLs (not images)
+/// Matches: [text](url) but excludes ![alt](url)
+pub fn parse_markdown_links(markdown: &str) -> Vec<MarkdownLink> {
+    // Match [text](url) that is NOT preceded by !
+    // We can't use negative lookbehind in the regex crate, so we'll filter manually
+    let re = Regex::new(r"\[([^\]]*)\]\(([^)]+)\)").unwrap();
+
+    re.captures_iter(markdown)
+        .enumerate()
+        .filter_map(|(idx, cap)| {
+            let full_match = cap.get(0)?;
+            let start = full_match.start();
+            // Check if preceded by ! (making it an image)
+            if start > 0 && markdown.as_bytes().get(start - 1) == Some(&b'!') {
+                return None;
+            }
+            Some(MarkdownLink {
+                text: cap.get(1).map(|m| m.as_str().to_string()).unwrap_or_default(),
+                url: cap.get(2).map(|m| m.as_str().to_string()).unwrap_or_default(),
+                index: idx + 1, // 1-based indexing for user-facing
+            })
         })
         .collect()
 }
@@ -117,6 +150,128 @@ async fn download_image(
     std::fs::write(&file_path, &bytes)?;
 
     Ok(file_path)
+}
+
+/// Generate a filename for a downloaded link
+fn generate_link_filename(issue_id: &str, link: &MarkdownLink, url: &Url) -> String {
+    // Try to extract filename from URL path
+    let url_filename = url
+        .path_segments()
+        .and_then(|segs| segs.last())
+        .filter(|s| !s.is_empty());
+
+    // Use link text if it looks like a filename, otherwise use URL filename
+    let name_part = if !link.text.is_empty()
+        && link.text.len() < 50
+        && link
+            .text
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' || c == '.')
+    {
+        // Sanitize link text for filename
+        link.text
+            .replace(' ', "_")
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-' || *c == '.')
+            .collect::<String>()
+    } else if let Some(filename) = url_filename {
+        filename.to_string()
+    } else {
+        format!("link_{}", link.index)
+    };
+
+    // Add issue prefix if not already a full filename
+    if name_part.contains('.') {
+        format!("{}__{}", issue_id, name_part)
+    } else {
+        format!("{}__{}.bin", issue_id, name_part)
+    }
+}
+
+/// Download a single link
+async fn download_link(
+    http: &Client,
+    api_key: &str,
+    link: &MarkdownLink,
+    output_dir: &Path,
+    issue_id: &str,
+) -> Result<PathBuf> {
+    let url = Url::parse(&link.url).map_err(|_| LinearError::InvalidUrl(link.url.clone()))?;
+
+    let mut request = http.get(url.clone());
+
+    // Add auth header for Linear-hosted links
+    if is_linear_url(&link.url) {
+        request = request.header("Authorization", api_key);
+    }
+
+    let response = request.send().await?;
+
+    if !response.status().is_success() {
+        return Err(LinearError::AttachmentDownloadFailed {
+            url: link.url.clone(),
+            status: response.status().as_u16(),
+        });
+    }
+
+    let bytes = response.bytes().await?;
+
+    let filename = generate_link_filename(issue_id, link, &url);
+    let file_path = output_dir.join(&filename);
+
+    std::fs::write(&file_path, &bytes)?;
+
+    Ok(file_path)
+}
+
+/// Download all links from issue description
+pub async fn download_links(
+    api_key: &str,
+    description: &str,
+    issue_id: &str,
+    output_dir: &Path,
+) -> Result<Vec<DownloadResult>> {
+    // Ensure output directory exists
+    if !output_dir.exists() {
+        return Err(LinearError::OutputDirNotFound(output_dir.to_path_buf()));
+    }
+
+    let links = parse_markdown_links(description);
+
+    if links.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Only download Linear-hosted links (these are the embedded attachments)
+    let links_to_download: Vec<_> = links
+        .into_iter()
+        .filter(|link| is_linear_url(&link.url))
+        .collect();
+
+    if links_to_download.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let http = Client::new();
+
+    let mut results = Vec::new();
+
+    for link in &links_to_download {
+        let result = match download_link(&http, api_key, link, output_dir, issue_id).await {
+            Ok(path) => DownloadResult::Success {
+                index: link.index,
+                path,
+            },
+            Err(e) => DownloadResult::Failed {
+                index: link.index,
+                url: link.url.clone(),
+                error: e.to_string(),
+            },
+        };
+        results.push(result);
+    }
+
+    Ok(results)
 }
 
 /// Result of a single image download attempt
@@ -342,5 +497,50 @@ More text
         assert!(is_linear_url("https://linear.app/uploads/img.png"));
         assert!(!is_linear_url("https://example.com/img.png"));
         assert!(!is_linear_url("https://imgur.com/abc.png"));
+    }
+
+    #[test]
+    fn test_parse_markdown_links_empty() {
+        let links = parse_markdown_links("");
+        assert!(links.is_empty());
+    }
+
+    #[test]
+    fn test_parse_markdown_links_single() {
+        let links = parse_markdown_links("[logs.zip](https://uploads.linear.app/abc123)");
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].text, "logs.zip");
+        assert_eq!(links[0].url, "https://uploads.linear.app/abc123");
+        assert_eq!(links[0].index, 1);
+    }
+
+    #[test]
+    fn test_parse_markdown_links_excludes_images() {
+        let markdown = r#"
+Some text
+![image](https://example.com/img.png)
+More text
+[logs.zip](https://uploads.linear.app/abc123)
+"#;
+        let links = parse_markdown_links(markdown);
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].text, "logs.zip");
+    }
+
+    #[test]
+    fn test_parse_markdown_links_mixed_content() {
+        let markdown = r#"
+Our korean translator gets a black screen on launch.
+
+[logs.zip](https://uploads.linear.app/abc123)
+
+![screenshot](https://example.com/screen.png)
+
+[another.txt](https://example.com/file.txt)
+"#;
+        let links = parse_markdown_links(markdown);
+        assert_eq!(links.len(), 2);
+        assert_eq!(links[0].text, "logs.zip");
+        assert_eq!(links[1].text, "another.txt");
     }
 }

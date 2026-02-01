@@ -94,6 +94,9 @@ pub enum LinearError {
 
     #[error("No relation found between {0} and {1}")]
     RelationNotFound(String, String),
+
+    #[error("Label not found: {0}")]
+    LabelNotFound(String),
 }
 
 pub type Result<T> = std::result::Result<T, LinearError>;

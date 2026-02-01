@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{Cycle, Priority, Project, Team, User};
+use crate::commands::labels::Label;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Issue {
@@ -14,10 +15,16 @@ pub struct Issue {
     pub team: Team,
     pub project: Option<Project>,
     pub cycle: Option<Cycle>,
+    pub labels: Option<LabelNodes>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
     #[serde(rename = "updatedAt")]
     pub updated_at: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct LabelNodes {
+    pub nodes: Vec<Label>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

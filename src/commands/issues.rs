@@ -7,7 +7,8 @@ use crate::cli::{DownloadAllArgs, IssueCreateArgs, IssueListArgs, IssueUpdateArg
 use crate::client::LinearClient;
 use crate::commands::attachments;
 use crate::commands::comments;
-use crate::commands::images::{download_images, print_download_results};
+use crate::commands::images::{download_images, download_links, print_download_results};
+use crate::commands::labels;
 use crate::config::Config;
 use crate::error::{LinearError, Result};
 use crate::output::{self, format_date, is_json_output, status_colored, truncate};
@@ -93,6 +94,14 @@ fragment IssueFields on Issue {
         number
         startsAt
         endsAt
+    }
+    labels {
+        nodes {
+            id
+            name
+            color
+            description
+        }
     }
     createdAt
     updatedAt
@@ -400,6 +409,17 @@ pub async fn view(client: &LinearClient, args: IssueViewArgs) -> Result<()> {
             );
         }
 
+        if let Some(labels) = &issue.labels {
+            if !labels.nodes.is_empty() {
+                let label_names: Vec<_> = labels
+                    .nodes
+                    .iter()
+                    .map(|l| status_colored(&l.name, Some(&l.color)))
+                    .collect();
+                println!("Labels:   {}", label_names.join(", "));
+            }
+        }
+
         println!("Created:  {}", format_date(&issue.created_at));
         println!("Updated:  {}", format_date(&issue.updated_at));
     });
@@ -481,6 +501,31 @@ pub async fn download_all(client: &LinearClient, args: DownloadAllArgs) -> Resul
                 eprintln!("Failed to download images: {}", e);
             }
         }
+
+        // Download embedded links from description (e.g., [logs.zip](https://uploads.linear.app/...))
+        let link_results = download_links(
+            client.api_key(),
+            description,
+            &issue.identifier,
+            &attachments_dir,
+        )
+        .await;
+
+        match link_results {
+            Ok(results) => {
+                let success_count = results.iter().filter(|r| r.is_success()).count();
+                if success_count > 0 {
+                    output::print_message(&format!(
+                        "Downloaded {} embedded links to {}",
+                        success_count,
+                        attachments_dir.display()
+                    ));
+                }
+            }
+            Err(e) => {
+                eprintln!("Failed to download embedded links: {}", e);
+            }
+        }
     }
 
     // Download attachments
@@ -547,6 +592,12 @@ pub async fn create(client: &LinearClient, config: &Config, args: IssueCreateArg
         input.insert("priority".to_string(), json!(priority));
     }
 
+    // Handle labels
+    if !args.label.is_empty() {
+        let label_ids = labels::resolve_label_ids(client, &args.label).await?;
+        input.insert("labelIds".to_string(), json!(label_ids));
+    }
+
     let variables = json!({ "input": input });
     let response: CreateIssueResponse =
         client.query(CREATE_ISSUE_MUTATION, Some(variables)).await?;
@@ -611,6 +662,29 @@ pub async fn update(client: &LinearClient, args: IssueUpdateArgs) -> Result<()> 
             // Treat as user ID directly
             input.insert("assigneeId".to_string(), json!(assignee));
         }
+    }
+
+    // Handle label changes
+    if !args.add_label.is_empty() || !args.remove_label.is_empty() {
+        let mut current_ids = labels::get_issue_label_ids(client, &args.id).await?;
+
+        // Add new labels
+        if !args.add_label.is_empty() {
+            let add_ids = labels::resolve_label_ids(client, &args.add_label).await?;
+            for id in add_ids {
+                if !current_ids.contains(&id) {
+                    current_ids.push(id);
+                }
+            }
+        }
+
+        // Remove labels
+        if !args.remove_label.is_empty() {
+            let remove_ids = labels::resolve_label_ids(client, &args.remove_label).await?;
+            current_ids.retain(|id| !remove_ids.contains(id));
+        }
+
+        input.insert("labelIds".to_string(), json!(current_ids));
     }
 
     if input.is_empty() {

@@ -141,6 +141,15 @@ async fn run() -> Result<()> {
                     IssueCommands::Unparent { id } => {
                         commands::relations::remove_parent(&client, &id).await?;
                     }
+                    IssueCommands::Labels { id } => {
+                        commands::labels::list_for_issue(&client, &id).await?;
+                    }
+                    IssueCommands::Label(args) => {
+                        commands::labels::add_label(&client, &args.id, &args.label).await?;
+                    }
+                    IssueCommands::Unlabel(args) => {
+                        commands::labels::remove_label(&client, &args.id, &args.label).await?;
+                    }
                 },
                 Commands::Completions { .. } | Commands::Init => {
                     // Already handled above

@@ -254,6 +254,22 @@ pub enum IssueCommands {
         /// Issue identifier
         id: String,
     },
+    /// List labels on an issue
+    #[command(after_help = "EXAMPLES:
+    linear issue labels ENG-123")]
+    Labels {
+        /// Issue identifier (e.g., ENG-123) or UUID
+        id: String,
+    },
+    /// Add a label to an issue
+    #[command(after_help = "EXAMPLES:
+    linear issue label ENG-123 bug
+    linear issue label ENG-123 \"high priority\"")]
+    Label(IssueLabelArgs),
+    /// Remove a label from an issue
+    #[command(after_help = "EXAMPLES:
+    linear issue unlabel ENG-123 bug")]
+    Unlabel(IssueLabelArgs),
 }
 
 #[derive(Subcommand)]
@@ -385,6 +401,10 @@ pub struct IssueCreateArgs {
     /// Priority level
     #[arg(long, value_enum)]
     pub priority: Option<Priority>,
+
+    /// Labels to add (can be specified multiple times)
+    #[arg(long)]
+    pub label: Vec<String>,
 }
 
 #[derive(Args)]
@@ -411,6 +431,14 @@ pub struct IssueUpdateArgs {
     /// Assign to user (ID or "me")
     #[arg(long)]
     pub assignee: Option<String>,
+
+    /// Labels to add (can be specified multiple times)
+    #[arg(long)]
+    pub add_label: Vec<String>,
+
+    /// Labels to remove (can be specified multiple times)
+    #[arg(long)]
+    pub remove_label: Vec<String>,
 }
 
 #[derive(Args)]
@@ -511,4 +539,13 @@ pub struct RelateArgs {
 
     /// Target issue identifier (e.g., ENG-456)
     pub target: String,
+}
+
+#[derive(Args)]
+pub struct IssueLabelArgs {
+    /// Issue identifier (e.g., ENG-123) or UUID
+    pub id: String,
+
+    /// Label name (case-insensitive)
+    pub label: String,
 }
