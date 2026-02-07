@@ -7,6 +7,7 @@ use crate::cli::{DownloadAllArgs, IssueCreateArgs, IssueListArgs, IssueUpdateArg
 use crate::client::LinearClient;
 use crate::commands::attachments;
 use crate::commands::comments;
+use crate::commands::cycles;
 use crate::commands::images::{download_images, download_links, print_download_results};
 use crate::commands::labels;
 use crate::config::Config;
@@ -598,6 +599,22 @@ pub async fn create(client: &LinearClient, config: &Config, args: IssueCreateArg
         input.insert("labelIds".to_string(), json!(label_ids));
     }
 
+    // Handle cycle
+    if let Some(cycle_number) = args.cycle {
+        let cycle_id = cycles::resolve_cycle_id(client, &team_key, cycle_number).await?;
+        input.insert("cycleId".to_string(), json!(cycle_id));
+    }
+
+    // Handle assignee
+    if let Some(assignee) = &args.assignee {
+        if assignee == "me" {
+            let viewer: ViewerResponse = client.query(GET_VIEWER_QUERY, None).await?;
+            input.insert("assigneeId".to_string(), json!(viewer.viewer.id));
+        } else {
+            input.insert("assigneeId".to_string(), json!(assignee));
+        }
+    }
+
     let variables = json!({ "input": input });
     let response: CreateIssueResponse =
         client.query(CREATE_ISSUE_MUTATION, Some(variables)).await?;
@@ -662,6 +679,21 @@ pub async fn update(client: &LinearClient, args: IssueUpdateArgs) -> Result<()> 
             // Treat as user ID directly
             input.insert("assigneeId".to_string(), json!(assignee));
         }
+    }
+
+    // Handle cycle - need team key to resolve cycle number
+    if let Some(cycle_number) = args.cycle {
+        let issue_response: IssueResponse = client
+            .query(GET_ISSUE_QUERY, Some(json!({ "id": args.id })))
+            .await?;
+
+        let issue = issue_response
+            .issue
+            .ok_or_else(|| LinearError::IssueNotFound(args.id.clone()))?;
+
+        let cycle_id =
+            cycles::resolve_cycle_id(client, &issue.team.key, cycle_number).await?;
+        input.insert("cycleId".to_string(), json!(cycle_id));
     }
 
     // Handle label changes

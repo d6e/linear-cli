@@ -405,6 +405,14 @@ pub struct IssueCreateArgs {
     /// Labels to add (can be specified multiple times)
     #[arg(long)]
     pub label: Vec<String>,
+
+    /// Cycle number to add issue to
+    #[arg(long)]
+    pub cycle: Option<i32>,
+
+    /// Assign to user (ID or "me")
+    #[arg(long)]
+    pub assignee: Option<String>,
 }
 
 #[derive(Args)]
@@ -439,6 +447,10 @@ pub struct IssueUpdateArgs {
     /// Labels to remove (can be specified multiple times)
     #[arg(long)]
     pub remove_label: Vec<String>,
+
+    /// Cycle number to set on the issue
+    #[arg(long)]
+    pub cycle: Option<i32>,
 }
 
 #[derive(Args)]

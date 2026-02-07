@@ -95,6 +95,31 @@ struct Team {
     name: String,
 }
 
+/// Resolve a cycle number to its ID for a given team.
+pub async fn resolve_cycle_id(
+    client: &LinearClient,
+    team_key: &str,
+    cycle_number: i32,
+) -> Result<String> {
+    let variables = Some(json!({
+        "filter": {
+            "team": {
+                "key": { "eq": team_key }
+            }
+        }
+    }));
+
+    let response: CyclesResponse = client.query(LIST_CYCLES_QUERY, variables).await?;
+
+    response
+        .cycles
+        .nodes
+        .iter()
+        .find(|c| c.number == cycle_number)
+        .map(|c| c.id.clone())
+        .ok_or_else(|| LinearError::CycleNotFound(cycle_number.to_string()))
+}
+
 pub async fn list(client: &LinearClient, config: &Config, args: CycleListArgs) -> Result<()> {
     let team_key = config.resolve_team(args.team.as_deref());
 
