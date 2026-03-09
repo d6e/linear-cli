@@ -48,10 +48,12 @@ linear issue create \
   -d "Users cannot log in with Google OAuth" \
   --team ENG \
   --project Backend \
-  --priority 2
+  --priority 2 \
+  --estimate 3
 ```
 
 **Priority levels:** 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low
+**Estimate:** Story points as a number (e.g., 0.5, 1, 2, 3, 5, 8)
 
 ### Update Issue
 
@@ -67,6 +69,9 @@ linear issue update ENG-123 --priority 1
 
 # Reassign
 linear issue update ENG-123 --assignee "user@example.com"
+
+# Set estimate (story points)
+linear issue update ENG-123 --estimate 5
 
 # Multiple updates
 linear issue update ENG-123 --status "In Progress" --priority 2
