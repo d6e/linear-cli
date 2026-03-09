@@ -10,6 +10,7 @@ pub struct Issue {
     pub title: String,
     pub description: Option<String>,
     pub priority: Priority,
+    pub estimate: Option<f64>,
     pub state: Option<WorkflowState>,
     pub assignee: Option<User>,
     pub team: Team,

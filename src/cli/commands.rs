@@ -402,6 +402,10 @@ pub struct IssueCreateArgs {
     #[arg(long, value_enum)]
     pub priority: Option<Priority>,
 
+    /// Estimate (story points)
+    #[arg(long)]
+    pub estimate: Option<f64>,
+
     /// Labels to add (can be specified multiple times)
     #[arg(long)]
     pub label: Vec<String>,
@@ -439,6 +443,10 @@ pub struct IssueUpdateArgs {
     /// Assign to user (ID or "me")
     #[arg(long)]
     pub assignee: Option<String>,
+
+    /// Estimate (story points)
+    #[arg(long)]
+    pub estimate: Option<f64>,
 
     /// Labels to add (can be specified multiple times)
     #[arg(long)]

@@ -28,6 +28,8 @@ struct IssueRow {
     status: String,
     #[tabled(rename = "Priority")]
     priority: String,
+    #[tabled(rename = "Estimate")]
+    estimate: String,
     #[tabled(rename = "Assignee")]
     assignee: String,
 }
@@ -53,6 +55,10 @@ impl From<&Issue> for IssueRow {
             } else {
                 issue.priority.colored()
             },
+            estimate: issue
+                .estimate
+                .map(|e| e.to_string())
+                .unwrap_or_default(),
             assignee: issue
                 .assignee
                 .as_ref()
@@ -69,6 +75,7 @@ fragment IssueFields on Issue {
     title
     description
     priority
+    estimate
     state {
         id
         name
@@ -391,6 +398,10 @@ pub async fn view(client: &LinearClient, args: IssueViewArgs) -> Result<()> {
 
         println!("Priority: {}", issue.priority.colored());
 
+        if let Some(estimate) = issue.estimate {
+            println!("Estimate: {}", estimate);
+        }
+
         println!(
             "Assignee: {}",
             issue.assignee.as_ref().map(|u| &u.name[..]).unwrap_or("-")
@@ -592,6 +603,9 @@ pub async fn create(client: &LinearClient, config: &Config, args: IssueCreateArg
     if let Some(priority) = args.priority {
         input.insert("priority".to_string(), json!(priority));
     }
+    if let Some(estimate) = args.estimate {
+        input.insert("estimate".to_string(), json!(estimate));
+    }
 
     // Handle labels
     if !args.label.is_empty() {
@@ -639,6 +653,9 @@ pub async fn update(client: &LinearClient, args: IssueUpdateArgs) -> Result<()> 
     }
     if let Some(priority) = args.priority {
         input.insert("priority".to_string(), json!(priority));
+    }
+    if let Some(estimate) = args.estimate {
+        input.insert("estimate".to_string(), json!(estimate));
     }
 
     // Handle status change - need to resolve name to ID
