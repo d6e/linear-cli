@@ -10,6 +10,8 @@ use crate::responses::Connection;
 
 #[derive(Tabled)]
 struct CommentRow {
+    #[tabled(rename = "#")]
+    index: usize,
     #[tabled(rename = "Author")]
     author: String,
     #[tabled(rename = "Comment")]
@@ -18,9 +20,10 @@ struct CommentRow {
     when: String,
 }
 
-impl From<&Comment> for CommentRow {
-    fn from(comment: &Comment) -> Self {
+impl CommentRow {
+    fn new(index: usize, comment: &Comment) -> Self {
         Self {
+            index,
             author: comment
                 .user
                 .as_ref()
@@ -140,14 +143,18 @@ pub async fn list(client: &LinearClient, issue_id: &str) -> Result<()> {
 
     output::print_table(
         &comments,
-        |comment| CommentRow::from(comment),
         |comment| {
+            let idx = comments.iter().position(|c| c.id == comment.id).unwrap_or(0);
+            CommentRow::new(idx, comment)
+        },
+        |comment| {
+            let idx = comments.iter().position(|c| c.id == comment.id).unwrap_or(0);
             let author = comment
                 .user
                 .as_ref()
                 .map(|u| u.name.as_str())
                 .unwrap_or("Unknown");
-            format!("{}: {}", author, truncate(&comment.body, 50))
+            format!("[{}] {}: {}", idx, author, truncate(&comment.body, 50))
         },
     );
 
@@ -174,13 +181,6 @@ pub async fn add(client: &LinearClient, args: CommentArgs) -> Result<()> {
 pub async fn edit(client: &LinearClient, issue_id: &str, index: usize, body: &str) -> Result<()> {
     let comments = fetch_comments(client, issue_id).await?;
 
-    if comments.is_empty() {
-        return Err(LinearError::CommentNotFound {
-            index,
-            total: 0,
-        });
-    }
-
     let comment = comments.get(index).ok_or(LinearError::CommentNotFound {
         index,
         total: comments.len(),
@@ -195,9 +195,10 @@ pub async fn edit(client: &LinearClient, issue_id: &str, index: usize, body: &st
         .query(UPDATE_COMMENT_MUTATION, Some(variables))
         .await?;
 
-    if response.comment_update.success {
-        output::print_message(&format!("Updated comment {} on {}", index, issue_id));
+    if !response.comment_update.success {
+        return Err(LinearError::MutationFailed("commentUpdate".to_string()));
     }
 
+    output::print_message(&format!("Updated comment {} on {}", index, issue_id));
     Ok(())
 }

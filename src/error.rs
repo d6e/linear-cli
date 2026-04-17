@@ -98,6 +98,9 @@ pub enum LinearError {
     #[error("Comment index {index} out of bounds (issue has {total} comments)")]
     CommentNotFound { index: usize, total: usize },
 
+    #[error("Mutation {0} returned success: false")]
+    MutationFailed(String),
+
     #[error("Label not found: {0}")]
     LabelNotFound(String),
 }
