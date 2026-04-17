@@ -212,9 +212,10 @@ pub enum IssueCommands {
         /// Issue identifier (e.g., ENG-123)
         id: String,
     },
-    /// Add a comment to an issue
+    /// Add or edit a comment on an issue
     #[command(after_help = "EXAMPLES:
-    linear issue comment ENG-123 \"This is a comment\"")]
+    linear issue comment ENG-123 \"This is a comment\"
+    linear issue comment ENG-123 \"Updated text\" --edit 0")]
     Comment(CommentArgs),
     /// List issue relations (blocks, blocked by, duplicates, related, parent, children)
     #[command(after_help = "EXAMPLES:
@@ -494,6 +495,10 @@ pub struct CommentArgs {
 
     /// Comment body (markdown supported)
     pub body: String,
+
+    /// Edit existing comment at this index (0-based, as shown by `comments`)
+    #[arg(long)]
+    pub edit: Option<usize>,
 }
 
 #[derive(Args)]

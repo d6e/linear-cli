@@ -124,7 +124,11 @@ async fn run() -> Result<()> {
                         commands::comments::list(&client, &id).await?;
                     }
                     IssueCommands::Comment(args) => {
-                        commands::comments::add(&client, args).await?;
+                        if let Some(index) = args.edit {
+                            commands::comments::edit(&client, &args.id, index, &args.body).await?;
+                        } else {
+                            commands::comments::add(&client, args).await?;
+                        }
                     }
                     IssueCommands::Relations { id } => {
                         commands::relations::list(&client, &id).await?;

@@ -95,6 +95,9 @@ pub enum LinearError {
     #[error("No relation found between {0} and {1}")]
     RelationNotFound(String, String),
 
+    #[error("Comment index {index} out of bounds (issue has {total} comments)")]
+    CommentNotFound { index: usize, total: usize },
+
     #[error("Label not found: {0}")]
     LabelNotFound(String),
 }

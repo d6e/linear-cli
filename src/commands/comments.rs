@@ -62,6 +62,18 @@ mutation CreateComment($issueId: String!, $body: String!) {
 }
 "#;
 
+const UPDATE_COMMENT_MUTATION: &str = r#"
+mutation UpdateComment($commentId: String!, $body: String!) {
+    commentUpdate(id: $commentId, input: { body: $body }) {
+        success
+        comment {
+            id
+            body
+        }
+    }
+}
+"#;
+
 #[derive(Deserialize)]
 struct CommentsResponse {
     issue: Option<IssueWithComments>,
@@ -90,11 +102,17 @@ pub struct CommentUser {
 #[derive(Deserialize)]
 struct CreateCommentResponse {
     #[serde(rename = "commentCreate")]
-    comment_create: CommentCreateResult,
+    comment_create: CommentMutationResult,
 }
 
 #[derive(Deserialize)]
-struct CommentCreateResult {
+struct UpdateCommentResponse {
+    #[serde(rename = "commentUpdate")]
+    comment_update: CommentMutationResult,
+}
+
+#[derive(Deserialize)]
+struct CommentMutationResult {
     success: bool,
 }
 
@@ -148,6 +166,37 @@ pub async fn add(client: &LinearClient, args: CommentArgs) -> Result<()> {
 
     if response.comment_create.success {
         output::print_message(&format!("Added comment to {}", args.id));
+    }
+
+    Ok(())
+}
+
+pub async fn edit(client: &LinearClient, issue_id: &str, index: usize, body: &str) -> Result<()> {
+    let comments = fetch_comments(client, issue_id).await?;
+
+    if comments.is_empty() {
+        return Err(LinearError::CommentNotFound {
+            index,
+            total: 0,
+        });
+    }
+
+    let comment = comments.get(index).ok_or(LinearError::CommentNotFound {
+        index,
+        total: comments.len(),
+    })?;
+
+    let variables = json!({
+        "commentId": comment.id,
+        "body": body
+    });
+
+    let response: UpdateCommentResponse = client
+        .query(UPDATE_COMMENT_MUTATION, Some(variables))
+        .await?;
+
+    if response.comment_update.success {
+        output::print_message(&format!("Updated comment {} on {}", index, issue_id));
     }
 
     Ok(())
