@@ -51,7 +51,7 @@ where
         OutputFormat::Json => {
             println!(
                 "{}",
-                serde_json::to_string_pretty(items)
+                serde_json::to_string(items)
                     .unwrap_or_else(|_| "<serialization error>".to_string())
             );
         }
@@ -73,7 +73,7 @@ pub fn print_item<T: Serialize>(item: &T, display: impl FnOnce(&T)) {
     if is_json_output() {
         println!(
             "{}",
-            serde_json::to_string_pretty(item)
+            serde_json::to_string(item)
                 .unwrap_or_else(|_| "<serialization error>".to_string())
         );
     } else {
