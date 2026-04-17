@@ -7,8 +7,8 @@ use crate::types::{IssueRelationType, Priority};
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum OutputFormat {
-    #[default]
     Table,
+    #[default]
     Json,
     Compact,
 }
@@ -27,7 +27,7 @@ pub struct Cli {
     pub command: Commands,
 
     /// Output format (table, json, compact)
-    #[arg(long, short = 'o', global = true, value_enum, default_value = "table")]
+    #[arg(long, short = 'o', global = true, value_enum, default_value = "json")]
     pub format: OutputFormat,
 
     /// Output as JSON (alias for --format json)
